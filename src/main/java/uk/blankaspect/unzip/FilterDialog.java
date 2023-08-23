@@ -72,9 +72,12 @@ import uk.blankaspect.ui.jfx.dialog.SingleTextFieldDialog;
 import uk.blankaspect.ui.jfx.image.MessageIcon32;
 
 import uk.blankaspect.ui.jfx.listview.ListViewEditor;
+import uk.blankaspect.ui.jfx.listview.ListViewStyle;
 import uk.blankaspect.ui.jfx.listview.SimpleTextListView;
 
 import uk.blankaspect.ui.jfx.spinner.CollectionSpinner;
+
+import uk.blankaspect.ui.jfx.style.StyleManager;
 
 import uk.blankaspect.ui.jfx.tooltip.TooltipDecorator;
 
@@ -130,6 +133,16 @@ public class FilterDialog
 
 	private	SimpleComboBox<String>		patternComboBox;
 	private	CollectionSpinner<Scope>	scopeSpinner;
+
+////////////////////////////////////////////////////////////////////////
+//  Static initialiser
+////////////////////////////////////////////////////////////////////////
+
+	static
+	{
+		// Register the style properties of dependencies of this class with the style manager
+		StyleManager.INSTANCE.registerDependencies(ListViewStyle.class);
+	}
 
 ////////////////////////////////////////////////////////////////////////
 //  Constructors
@@ -264,9 +277,6 @@ public class FilterDialog
 
 		// Update images of image buttons
 		Images.updateImageButtons(getScene());
-
-		// Resize dialog to scene
-		sizeToScene();
 
 		// When dialog is shown, prevent its height from changing; set saved pattern on text field of combo box
 		setOnShown(event ->

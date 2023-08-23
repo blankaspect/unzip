@@ -18,6 +18,8 @@ package uk.blankaspect.ui.jfx.listview;
 // IMPORTS
 
 
+import java.lang.invoke.MethodHandles;
+
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
@@ -143,8 +145,10 @@ public class ListViewEditor<T>
 	/** Keys of colours that are used in colour properties. */
 	private interface ColourKey
 	{
-		String	GRAPHIC_BUTTON_BACKGROUND	= "listViewEditor.graphicButton.background";
-		String	GRAPHIC_BUTTON_BORDER		= "listViewEditor.graphicButton.border";
+		String	PREFIX	= StyleManager.colourKeyPrefix(MethodHandles.lookup().lookupClass().getEnclosingClass());
+
+		String	GRAPHIC_BUTTON_BACKGROUND	= PREFIX + "graphicButton.background";
+		String	GRAPHIC_BUTTON_BORDER		= PREFIX + "graphicButton.border";
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -469,8 +473,7 @@ public class ListViewEditor<T>
 	private static Color getColour(
 		String	key)
 	{
-		Color colour = StyleManager.INSTANCE.getColour(key);
-		return (colour == null) ? StyleManager.DEFAULT_COLOUR : colour;
+		return StyleManager.INSTANCE.getColourOrDefault(key);
 	}
 
 	//------------------------------------------------------------------

@@ -18,6 +18,8 @@ package uk.blankaspect.ui.jfx.combobox;
 // IMPORTS
 
 
+import java.lang.invoke.MethodHandles;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -204,9 +206,11 @@ public class SimpleComboBox<T>
 	/** Keys of colours that are used in colour properties. */
 	private interface ColourKey
 	{
-		String	LIST_BUTTON_ICON		= "simpleComboBox.listButton.icon";
-		String	LIST_BUTTON_PANE_BORDER	= "simpleComboBox.listButtonPane.border";
-		String	LIST_VIEW_TICK			= "simpleComboBox.listView.tick";
+		String	PREFIX	= StyleManager.colourKeyPrefix(MethodHandles.lookup().lookupClass().getEnclosingClass());
+
+		String	LIST_BUTTON_ICON		= PREFIX + "listButton.icon";
+		String	LIST_BUTTON_PANE_BORDER	= PREFIX + "listButtonPane.border";
+		String	LIST_VIEW_TICK			= PREFIX + "listView.tick";
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -500,8 +504,7 @@ public class SimpleComboBox<T>
 	private static Color getColour(
 		String	key)
 	{
-		Color colour = StyleManager.INSTANCE.getColour(key);
-		return (colour == null) ? StyleManager.DEFAULT_COLOUR : colour;
+		return StyleManager.INSTANCE.getColourOrDefault(key);
 	}
 
 	//------------------------------------------------------------------

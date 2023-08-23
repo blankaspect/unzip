@@ -64,6 +64,7 @@ import uk.blankaspect.ui.jfx.dialog.WarningDialog;
 import uk.blankaspect.ui.jfx.image.MessageIcon32;
 
 import uk.blankaspect.ui.jfx.listview.ListViewEditor;
+import uk.blankaspect.ui.jfx.listview.ListViewStyle;
 import uk.blankaspect.ui.jfx.listview.SimpleTextListView;
 
 import uk.blankaspect.ui.jfx.locationchooser.LocationChooser;
@@ -191,7 +192,9 @@ public class PreferencesDialog
 	/** Keys of colours that are used in colour properties. */
 	private interface ColourKey
 	{
-		String	TABBED_PANE_BORDER	= "preferencesDialog.tabbedPane.border";
+		String	PREFIX	= StyleManager.colourKeyPrefix(MethodHandles.lookup().lookupClass().getEnclosingClass());
+
+		String	TABBED_PANE_BORDER	= PREFIX + "tabbedPane.border";
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -214,7 +217,8 @@ public class PreferencesDialog
 	static
 	{
 		// Register the style properties of this class and its dependencies with the style manager
-		StyleManager.INSTANCE.register(PreferencesDialog.class, COLOUR_PROPERTIES, RULE_SETS);
+		StyleManager.INSTANCE.register(PreferencesDialog.class, COLOUR_PROPERTIES, RULE_SETS,
+									   ListViewStyle.class);
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -603,8 +607,7 @@ public class PreferencesDialog
 	private static Color getColour(
 		String	key)
 	{
-		Color colour = StyleManager.INSTANCE.getColour(key);
-		return (colour == null) ? StyleManager.DEFAULT_COLOUR : colour;
+		return StyleManager.INSTANCE.getColourOrDefault(key);
 	}
 
 	//------------------------------------------------------------------

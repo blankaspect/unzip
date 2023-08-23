@@ -228,10 +228,12 @@ public class ExtractionDialog
 	/** Keys of colours that are used in colour properties. */
 	private interface ColourKey
 	{
-		String	DIRECTORY_LABEL_BACKGROUND		= "extractionDialog.directoryLabel.background";
-		String	DIRECTORY_LABEL_BORDER			= "extractionDialog.directoryLabel.border";
-		String	DIRECTORY_LABEL_BORDER_DISABLED	= "extractionDialog.directoryLabel.border.disabled";
-		String	DIRECTORY_LABEL_TEXT			= "extractionDialog.directoryLabel.text";
+		String	PREFIX	= StyleManager.colourKeyPrefix(MethodHandles.lookup().lookupClass().getEnclosingClass());
+
+		String	DIRECTORY_LABEL_BACKGROUND		= PREFIX + "directoryLabel.background";
+		String	DIRECTORY_LABEL_BORDER			= PREFIX + "directoryLabel.border";
+		String	DIRECTORY_LABEL_BORDER_DISABLED	= PREFIX + "directoryLabel.border.disabled";
+		String	DIRECTORY_LABEL_TEXT			= PREFIX + "directoryLabel.text";
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -641,9 +643,6 @@ public class ExtractionDialog
 		// Update images of image buttons
 		Images.updateImageButtons(getScene());
 
-		// Resize dialog to scene
-		sizeToScene();
-
 		// Set drag-and-drop handler to accept a directory
 		getScene().setOnDragOver(event ->
 		{
@@ -737,8 +736,7 @@ public class ExtractionDialog
 	private static Color getColour(
 		String	key)
 	{
-		Color colour = StyleManager.INSTANCE.getColour(key);
-		return (colour == null) ? StyleManager.DEFAULT_COLOUR : colour;
+		return StyleManager.INSTANCE.getColourOrDefault(key);
 	}
 
 	//------------------------------------------------------------------

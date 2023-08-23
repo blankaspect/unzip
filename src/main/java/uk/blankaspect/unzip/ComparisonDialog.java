@@ -341,16 +341,18 @@ public class ComparisonDialog
 	/** Keys of colours that are used in colour properties. */
 	private interface ColourKey
 	{
-		String	CHECK_LABEL_BORDER					= "comparisonDialog.checkLabel.border";
-		String	CHECK_LABEL_TICK_BOX				= "comparisonDialog.checkLabel.tickBox";
-		String	FILTER_LIST_VIEW_PLACEHOLDER_TEXT	= "comparisonDialog.filterListView.placeholder.text";
-		String	PATTERN_KIND_ICON_FILL_GLOB			= "comparisonDialog.patternKindIcon.fill.glob";
-		String	PATTERN_KIND_ICON_FILL_REGEX		= "comparisonDialog.patternKindIcon.fill.regex";
-		String	PATTERN_KIND_ICON_STROKE			= "comparisonDialog.patternKindIcon.stroke";
-		String	PATTERN_KIND_ICON_STROKE_GLOB		= "comparisonDialog.patternKindIcon.stroke.glob";
-		String	PATTERN_KIND_ICON_STROKE_REGEX		= "comparisonDialog.patternKindIcon.stroke.regex";
-		String	PATTERN_KIND_ICON_TEXT				= "comparisonDialog.patternKindIcon.text";
-		String	RESULT_DIALOG_DIFFERENCE_TEXT		= "comparisonDialog.resultDialog.difference.text";
+		String	PREFIX	= StyleManager.colourKeyPrefix(MethodHandles.lookup().lookupClass().getEnclosingClass());
+
+		String	CHECK_LABEL_BORDER					= PREFIX + "checkLabel.border";
+		String	CHECK_LABEL_TICK_BOX				= PREFIX + "checkLabel.tickBox";
+		String	FILTER_LIST_VIEW_PLACEHOLDER_TEXT	= PREFIX + "filterListView.placeholder.text";
+		String	PATTERN_KIND_ICON_FILL_GLOB			= PREFIX + "patternKindIcon.fill.glob";
+		String	PATTERN_KIND_ICON_FILL_REGEX		= PREFIX + "patternKindIcon.fill.regex";
+		String	PATTERN_KIND_ICON_STROKE			= PREFIX + "patternKindIcon.stroke";
+		String	PATTERN_KIND_ICON_STROKE_GLOB		= PREFIX + "patternKindIcon.stroke.glob";
+		String	PATTERN_KIND_ICON_STROKE_REGEX		= PREFIX + "patternKindIcon.stroke.regex";
+		String	PATTERN_KIND_ICON_TEXT				= PREFIX + "patternKindIcon.text";
+		String	RESULT_DIALOG_DIFFERENCE_TEXT		= PREFIX + "resultDialog.difference.text";
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -817,8 +819,7 @@ public class ComparisonDialog
 	private static Color getColour(
 		String	key)
 	{
-		Color colour = StyleManager.INSTANCE.getColour(key);
-		return (colour == null) ? StyleManager.DEFAULT_COLOUR : colour;
+		return StyleManager.INSTANCE.getColourOrDefault(key);
 	}
 
 	//------------------------------------------------------------------

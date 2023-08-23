@@ -18,6 +18,8 @@ package uk.blankaspect.unzip;
 // IMPORTS
 
 
+import java.lang.invoke.MethodHandles;
+
 import java.util.List;
 
 import javafx.geometry.Insets;
@@ -103,9 +105,11 @@ public class NumberSelectedPane
 	/** Keys of colours that are used in colour properties. */
 	private interface ColourKey
 	{
-		String	BACKGROUND	= "numberSelectedPane.background";
-		String	BORDER		= "numberSelectedPane.border";
-		String	TEXT		= "numberSelectedPane.text";
+		String	PREFIX	= StyleManager.colourKeyPrefix(MethodHandles.lookup().lookupClass().getEnclosingClass());
+
+		String	BACKGROUND	= PREFIX + "background";
+		String	BORDER		= PREFIX + "border";
+		String	TEXT		= PREFIX + "text";
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -175,8 +179,7 @@ public class NumberSelectedPane
 	private static Color getColour(
 		String	key)
 	{
-		Color colour = StyleManager.INSTANCE.getColour(key);
-		return (colour == null) ? StyleManager.DEFAULT_COLOUR : colour;
+		return StyleManager.INSTANCE.getColourOrDefault(key);
 	}
 
 	//------------------------------------------------------------------

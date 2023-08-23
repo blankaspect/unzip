@@ -251,10 +251,12 @@ public class ZipFileTableView
 	/** Keys of colours that are used in colour properties. */
 	private interface ColourKey
 	{
-		String	HEADER_CELL_BACKGROUND			= "zipFileTableView.header.cell.background";
-		String	HEADER_CELL_BACKGROUND_FILTERED	= "zipFileTableView.header.cell.background.filtered";
-		String	HEADER_CELL_BORDER				= "zipFileTableView.header.cell.border";
-		String	PLACEHOLDER_TEXT				= "zipFileTableView.placeholder.text";
+		String	PREFIX	= StyleManager.colourKeyPrefix(MethodHandles.lookup().lookupClass().getEnclosingClass());
+
+		String	HEADER_CELL_BACKGROUND			= PREFIX + "header.cell.background";
+		String	HEADER_CELL_BACKGROUND_FILTERED	= PREFIX + "header.cell.background.filtered";
+		String	HEADER_CELL_BORDER				= PREFIX + "header.cell.border";
+		String	PLACEHOLDER_TEXT				= PREFIX + "placeholder.text";
 	}
 
 	/** Keys of images that are used in CSS rule sets. */
@@ -550,8 +552,7 @@ public class ZipFileTableView
 	private static Color getColour(
 		String	key)
 	{
-		Color colour = StyleManager.INSTANCE.getColour(key);
-		return (colour == null) ? StyleManager.DEFAULT_COLOUR : colour;
+		return StyleManager.INSTANCE.getColourOrDefault(key);
 	}
 
 	//------------------------------------------------------------------
