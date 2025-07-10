@@ -154,7 +154,7 @@ public class FileEditor
 		// Find first editor that has no filename patterns
 		for (FileEditor editor : editors)
 		{
-			if (editor.filenamePatterns.isEmpty())
+			if (!editor.hasFilenamePatterns())
 				return editor;
 		}
 
@@ -185,8 +185,8 @@ public class FileEditor
 	public int hashCode()
 	{
 		int code = Objects.hashCode(name);
-		code = code * 31 + Objects.hashCode(command);
-		code = code * 31 + filenamePatterns.hashCode();
+		code = 31 * code + Objects.hashCode(command);
+		code = 31 * code + filenamePatterns.hashCode();
 		return code;
 	}
 

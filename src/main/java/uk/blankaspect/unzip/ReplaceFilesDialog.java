@@ -45,8 +45,12 @@ import javafx.stage.Window;
 
 import uk.blankaspect.common.basictree.MapNode;
 
+import uk.blankaspect.common.filesystem.PathUtils;
+
 import uk.blankaspect.common.function.IFunction2;
 import uk.blankaspect.common.function.IProcedure0;
+
+import uk.blankaspect.ui.jfx.button.Buttons;
 
 import uk.blankaspect.ui.jfx.dialog.SimpleModalDialog;
 
@@ -128,7 +132,7 @@ public class ReplaceFilesDialog
 
 		// Create list view of locations of files
 		SimpleTextListView<ZipFileEntry> listView = new SimpleTextListView<>(items, entry ->
-				entry.getOutputFile(directory, flatten).toAbsolutePath().toString());
+				PathUtils.absString(entry.getOutputFile(directory, flatten)));
 		listView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		listView.setPrefSize(LIST_VIEW_WIDTH, LIST_VIEW_HEIGHT);
 		HBox.setHgrow(listView, Priority.ALWAYS);
@@ -137,10 +141,9 @@ public class ReplaceFilesDialog
 		IFunction2<Button, String, EventHandler<ActionEvent>> buttonFactory = (text, actionHandler) ->
 		{
 			// Create button
-			Button button = new Button(text);
+			Button button = Buttons.hExpansive(text);
 
 			// Set properties
-			button.setMaxWidth(Double.MAX_VALUE);
 			button.setPadding(LIST_BUTTON_PADDING);
 			button.setOnAction(actionHandler);
 
@@ -200,7 +203,7 @@ public class ReplaceFilesDialog
 		getContentPane().setPadding(CONTENT_PANE_PADDING);
 
 		// Create button: extract
-		Button extractButton = new Button(EXTRACT_STR);
+		Button extractButton = Buttons.hNoShrink(EXTRACT_STR);
 		extractButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 		extractButton.setOnAction(event ->
 		{
@@ -226,7 +229,7 @@ public class ReplaceFilesDialog
 		updateNumSelected.invoke();
 
 		// Create button: cancel
-		Button cancelButton = new Button(CANCEL_STR);
+		Button cancelButton = Buttons.hNoShrink(CANCEL_STR);
 		cancelButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 		cancelButton.setOnAction(event -> requestClose());
 		addButton(cancelButton, HPos.RIGHT);

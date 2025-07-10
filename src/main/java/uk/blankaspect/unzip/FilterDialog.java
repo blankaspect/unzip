@@ -22,10 +22,11 @@ import java.lang.invoke.MethodHandles;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import java.util.function.Predicate;
 
-import javafx.collections.FXCollections;
+import java.util.stream.Stream;
 
 import javafx.geometry.Dimension2D;
 import javafx.geometry.HPos;
@@ -34,7 +35,10 @@ import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextField;
 
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
@@ -45,39 +49,41 @@ import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 
 import javafx.stage.Window;
 
 import uk.blankaspect.common.basictree.ListNode;
 import uk.blankaspect.common.basictree.MapNode;
-import uk.blankaspect.common.basictree.StringNode;
+
+import uk.blankaspect.common.exception2.UnexpectedRuntimeException;
 
 import uk.blankaspect.common.function.IProcedure0;
+import uk.blankaspect.common.function.IProcedure1;
 
 import uk.blankaspect.common.matcher.SimpleWildcardPathnameMatcher;
 import uk.blankaspect.common.matcher.SimpleWildcardPatternMatcher;
 
+import uk.blankaspect.common.message.MessageConstants;
+
 import uk.blankaspect.common.string.StringUtils;
 
-import uk.blankaspect.ui.jfx.button.ImageButton;
+import uk.blankaspect.ui.jfx.button.Buttons;
+import uk.blankaspect.ui.jfx.button.ImageDataButton;
 
 import uk.blankaspect.ui.jfx.combobox.SimpleComboBox;
 
 import uk.blankaspect.ui.jfx.dialog.ConfirmationDialog;
-import uk.blankaspect.ui.jfx.dialog.MessageDialog;
 import uk.blankaspect.ui.jfx.dialog.SimpleModalDialog;
 import uk.blankaspect.ui.jfx.dialog.SimpleModelessDialog;
-import uk.blankaspect.ui.jfx.dialog.SingleTextFieldDialog;
 
 import uk.blankaspect.ui.jfx.image.MessageIcon32;
 
-import uk.blankaspect.ui.jfx.listview.ListViewEditor;
-import uk.blankaspect.ui.jfx.listview.ListViewStyle;
-import uk.blankaspect.ui.jfx.listview.SimpleTextListView;
-
 import uk.blankaspect.ui.jfx.spinner.CollectionSpinner;
 
-import uk.blankaspect.ui.jfx.style.StyleManager;
+import uk.blankaspect.ui.jfx.tableview.TableViewEditor;
+
+import uk.blankaspect.ui.jfx.text.TextUtils;
 
 import uk.blankaspect.ui.jfx.tooltip.TooltipDecorator;
 
@@ -115,9 +121,10 @@ public class FilterDialog
 	// Miscellaneous strings
 	private static final	String	ENTRY_FILTER_STR	= "Zip-file entry filter";
 	private static final	String	PATTERN_STR			= "Pattern";
-	private static final	String	SHOW_PATTERNS_STR	= "Show patterns (Ctrl+Space in field)";
-	private static final	String	ADD_PATTERN_STR		= "Add pattern to list";
-	private static final	String	EDIT_PATTERNS_STR	= "Edit list of patterns";
+	private static final	String	SHOW_LIST_STR		= "Show list (Ctrl+Space in field)";
+	private static final	String	FILTER_STR			= "filter";
+	private static final	String	ADD_FILTER_STR		= "Add filter to list";
+	private static final	String	EDIT_FILTERS_STR	= "Edit list of filters";
 	private static final	String	SCOPE_STR			= "Scope";
 	private static final	String	CLEAR_STR			= "Clear";
 
@@ -131,18 +138,9 @@ public class FilterDialog
 //  Instance variables
 ////////////////////////////////////////////////////////////////////////
 
-	private	SimpleComboBox<String>		patternComboBox;
+	private	SimpleComboBox<Filter>		filterComboBox;
 	private	CollectionSpinner<Scope>	scopeSpinner;
-
-////////////////////////////////////////////////////////////////////////
-//  Static initialiser
-////////////////////////////////////////////////////////////////////////
-
-	static
-	{
-		// Register the style properties of dependencies of this class with the style manager
-		StyleManager.INSTANCE.registerDependencies(ListViewStyle.class);
-	}
+	private	boolean						updatingFilter;
 
 ////////////////////////////////////////////////////////////////////////
 //  Constructors
@@ -166,7 +164,7 @@ public class FilterDialog
 
 		// Initialise column constraints
 		ColumnConstraints column = new ColumnConstraints();
-		column.setMinWidth(GridPane.USE_PREF_SIZE);
+		column.setMinWidth(Region.USE_PREF_SIZE);
 		column.setHalignment(HPos.RIGHT);
 		column.setHgrow(Priority.NEVER);
 		controlPane.getColumnConstraints().add(column);
@@ -179,95 +177,170 @@ public class FilterDialog
 		// Initialise row index
 		int row = 0;
 
-		// Create procedure to update filter
-		IProcedure0 updateFilter = () ->
+		// Create procedure to apply filter to table view
+		IProcedure1<Filter> applyFilter = filter ->
 		{
-			// Create filter from pattern
-			String pattern = patternComboBox.getValue();
-			Predicate<ZipFileEntry> filter = StringUtils.isNullOrBlank(pattern)
-														? null
-														: switch (scopeSpinner.getItem())
+			// Create zip-entry filter
+			String pattern = (filter == null) ? null : filter.pattern;
+			Predicate<ZipFileEntry> zipFilter = StringUtils.isNullOrBlank(pattern) ? null : switch (filter.scope)
 			{
 				case FILENAME      ->
 						entry -> SimpleWildcardPatternMatcher.allIgnoreCase(pattern).match(entry.getFilename());
 				case DIRECTORY     ->
 						entry -> SimpleWildcardPathnameMatcher.ignoreCase(pattern).match(entry.getDirectoryPathname());
-				case FULL_PATHNAME ->
+				case PATHNAME ->
 						entry -> SimpleWildcardPathnameMatcher.ignoreCase(pattern).match(entry.getPathname());
 			};
 
-			// Set filter on table view
-			UnzipApp.instance().getTableView().setFilter(filter);
+			// Set zip-entry filter on table view
+			UnzipApp.instance().getTableView().setFilter(zipFilter);
 		};
 
-		// Create combo box: pattern
-		patternComboBox = new SimpleComboBox<>(SimpleComboBox.IDENTITY_STRING_CONVERTER, state.patterns);
-		patternComboBox.setMaxWidth(Double.MAX_VALUE);
-		patternComboBox.getTextField().setPrefColumnCount(PATTERN_FIELD_NUM_COLUMNS);
-		patternComboBox.valueProperty().addListener(observable -> updateFilter.invoke());
-		TooltipDecorator.addTooltip(patternComboBox, SHOW_PATTERNS_STR);
-		HBox.setHgrow(patternComboBox, Priority.ALWAYS);
-
-		// Create button: add pattern to list
-		ImageButton addPatternButton = new ImageButton(Images.PLUS_SIGN, ADD_PATTERN_STR);
-		addPatternButton.setOnAction(event ->
+		// Create combo box: filter
+		filterComboBox = new SimpleComboBox<>(new SimpleComboBox.IConverter<>()
 		{
-			String text = patternComboBox.getText();
-			if (!StringUtils.isNullOrBlank(text))
+			@Override
+			public String toText(
+				Filter	filter)
 			{
-				List<String> items = new ArrayList<>(patternComboBox.getItems());
-				items.remove(text);
-				items.add(0, text);
-				patternComboBox.setItems(items);
-				patternComboBox.setValue(text);
+				return (filter == null) ? null : filter.pattern;
 			}
-		});
-		HBox.setMargin(addPatternButton, new Insets(0.0, 0.0, 0.0, 4.0));
 
-		// Create button: edit list of patterns
-		ImageButton editPatternsButton = new ImageButton(Images.PENCIL, EDIT_PATTERNS_STR);
-		editPatternsButton.setOnAction(event ->
-		{
-			String pattern = patternComboBox.getValue();
-			List<String> patterns = new EditPatternsDialog(this, patternComboBox.getItems()).showDialog();
-			if (patterns != null)
+			@Override
+			public Filter fromText(
+				String	pattern)
 			{
-				patternComboBox.setItems(patterns);
-				if (!patterns.isEmpty())
+				return StringUtils.isNullOrBlank(pattern) ? null : new Filter(pattern, scopeSpinner.getItem(), false);
+			}
+
+			@Override
+			public Filter copy(
+				Filter	filter)
+			{
+				return (filter == null) ? null : filter.clone();
+			}
+		},
+		state.filters);
+		filterComboBox.setAllowNullCommit(true);
+		filterComboBox.setMaxWidth(Double.MAX_VALUE);
+		filterComboBox.getTextField().setPrefColumnCount(PATTERN_FIELD_NUM_COLUMNS);
+		filterComboBox.valueProperty().addListener((observable, oldFilter, filter) ->
+		{
+			// Prevent updates
+			updatingFilter = true;
+
+			// Update scope spinner
+			if (filter != null)
+				scopeSpinner.setItem(filter.scope);
+
+			// Apply filter to table view
+			applyFilter.invoke(filter);
+
+			// Allow updates
+			updatingFilter = false;
+		});
+		TooltipDecorator.addTooltip(filterComboBox.getButton(), SHOW_LIST_STR);
+		HBox.setHgrow(filterComboBox, Priority.ALWAYS);
+
+		// Create button: add filter to list
+		ImageDataButton addFilterButton = new ImageDataButton(Images.ImageId.PLUS_SIGN, ADD_FILTER_STR);
+		HBox.setMargin(addFilterButton, new Insets(0.0, 0.0, 0.0, 4.0));
+
+		// Create procedure to update 'add filter to list' button
+		IProcedure0 updateAddFilterButton = () ->
+				addFilterButton.setDisable(StringUtils.isNullOrBlank(filterComboBox.getText()));
+
+		// Handle action on 'add filter to list' button
+		addFilterButton.setOnAction(event ->
+		{
+			// Get pattern from combo box
+			String pattern = filterComboBox.getText();
+
+			// If there is a pattern, create filter and add it to list of items of combo box
+			if (!StringUtils.isNullOrBlank(pattern))
+			{
+				// Ask whether to save filter
+				Boolean save = Utils.askSaveBeyondSession(this, ADD_FILTER_STR, FILTER_STR);
+
+				// If not cancelled, add filter to list
+				if (save != null)
 				{
-					int index = (pattern == null) ? -1 : patterns.indexOf(pattern);
+					Filter filter = new Filter(pattern, scopeSpinner.getItem(), save);
+					List<Filter> items = new ArrayList<>(filterComboBox.getItems());
+					int index = items.indexOf(filter);
 					if (index < 0)
-						patternComboBox.setValue(null);
+						items.add(filter);
 					else
-						patternComboBox.selectIndex(index);
+						items.set(index, filter);
+					filterComboBox.setItems(items);
+					filterComboBox.setValue(filter.clone());
 				}
 			}
 		});
 
-		// Create pattern pane
-		HBox patternPane = new HBox(2.0, patternComboBox, addPatternButton, editPatternsButton);
-		patternPane.setAlignment(Pos.CENTER_LEFT);
-		controlPane.addRow(row++, new Label(PATTERN_STR), patternPane);
+		// Update 'add filter to list' button when content of combo-box editor changes
+		filterComboBox.getTextField().textProperty().addListener(observable -> updateAddFilterButton.invoke());
+
+		// Create button: edit list of filters
+		ImageDataButton editFiltersButton = new ImageDataButton(Images.ImageId.PENCIL, EDIT_FILTERS_STR);
+		editFiltersButton.setOnAction(event ->
+		{
+			Filter filter = filterComboBox.getValue();
+			List<Filter> filters = new FilterListDialog(this, filterComboBox.getItems()).showDialog();
+			if (filters != null)
+			{
+				filterComboBox.setItems(filters);
+				if (!filters.isEmpty())
+				{
+					int index = (filter == null) ? -1 : filters.indexOf(filter);
+					if (index < 0)
+						filterComboBox.setValue(null);
+					else
+						filterComboBox.selectIndex(index);
+				}
+			}
+		});
+
+		// Update 'add filter to list' button
+		updateAddFilterButton.invoke();
+
+		// Create filter pane
+		HBox filterPane = new HBox(2.0, filterComboBox, addFilterButton, editFiltersButton);
+		filterPane.setAlignment(Pos.CENTER_LEFT);
+		controlPane.addRow(row++, new Label(PATTERN_STR), filterPane);
 
 		// Create spinner: scope
-		scopeSpinner = CollectionSpinner.leftRightH(HPos.CENTER, true, Scope.class, state.scope, null, null);
-		scopeSpinner.itemProperty().addListener(observable -> updateFilter.invoke());
+		scopeSpinner = CollectionSpinner.leftRightH(HPos.CENTER, true, Scope.class, null, null, null);
+		scopeSpinner.itemProperty().addListener((observable, oldScope, scope) ->
+		{
+			// If filter is being updated, stop
+			if (updatingFilter)
+				return;
+
+			// Set value of filter combo box to content of text field
+			filterComboBox.commitValue();
+
+			// Set scope on filter
+			Filter filter = filterComboBox.getValue();
+			if (filter != null)
+				filter.scope = scope;
+
+			// Apply filter to table view
+			applyFilter.invoke(filterComboBox.getValue());
+		});
 		controlPane.addRow(row++, new Label(SCOPE_STR), scopeSpinner);
 
 		// Add control pane to content pane
 		addContent(controlPane);
 
 		// Create button: clear
-		Button clearButton = new Button(CLEAR_STR);
+		Button clearButton = Buttons.hNoShrink(CLEAR_STR);
 		clearButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 		clearButton.setOnAction(event -> clearFilter());
 		addButton(clearButton, HPos.LEFT);
 
-		// Update filter
-		updateFilter.invoke();
-
 		// Create button: close
-		Button closeButton = new Button(CLOSE_STR);
+		Button closeButton = Buttons.hNoShrink(CLOSE_STR);
 		closeButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 		closeButton.setOnAction(event -> requestClose());
 		addButton(closeButton, HPos.RIGHT);
@@ -276,16 +349,19 @@ public class FilterDialog
 		setKeyFireButton(closeButton, null);
 
 		// Update images of image buttons
-		Images.updateImageButtons(getScene());
+		ImageDataButton.updateButtons(getScene());
 
-		// When dialog is shown, prevent its height from changing; set saved pattern on text field of combo box
+		// When dialog is shown, prevent its height from changing; set saved filter on combo box and scope spinner
 		setOnShown(event ->
 		{
 			// Prevent height of dialog from changing
 			WindowUtils.preventHeightChange(this);
 
-			// Set saved pattern on text field of combo box
-			patternComboBox.setText(state.pattern);
+			// Set filter on combo box and scope spinner
+			Filter filter = state.filter;
+			if (filter != null)
+				filterComboBox.setText(filter.pattern);
+			scopeSpinner.setItem((filter == null) ? Scope.FILENAME : filter.scope);
 		});
 
 		// Save dialog state when dialog is closed
@@ -293,11 +369,9 @@ public class FilterDialog
 		{
 			// Save state
 			state.restoreAndUpdate(this, true);
-			state.pattern = patternComboBox.getText();
-			state.patterns.clear();
-			state.patterns.addAll(patternComboBox.getItems());
-			state.patternIndex = patternComboBox.getValueIndex();
-			state.scope = scopeSpinner.getItem();
+			state.filter = filterComboBox.getValue();
+			state.filters.clear();
+			state.filters.addAll(filterComboBox.getItems());
 
 			// Clear filter
 			clearFilter();
@@ -316,7 +390,7 @@ public class FilterDialog
 			}
 		});
 
-		// Apply new style sheet to scene
+		// Apply style sheet to scene
 		applyStyleSheet();
 	}
 
@@ -347,7 +421,7 @@ public class FilterDialog
 
 	public void clearFilter()
 	{
-		patternComboBox.setValue(null);
+		filterComboBox.setValue(null);
 	}
 
 	//------------------------------------------------------------------
@@ -377,7 +451,7 @@ public class FilterDialog
 			"Filename"
 		),
 
-		FULL_PATHNAME
+		PATHNAME
 		(
 			"Full pathname"
 		);
@@ -386,6 +460,7 @@ public class FilterDialog
 	//  Instance variables
 	////////////////////////////////////////////////////////////////////
 
+		private	String	key;
 		private	String	text;
 
 	////////////////////////////////////////////////////////////////////
@@ -396,6 +471,7 @@ public class FilterDialog
 			String	text)
 		{
 			// Initialise instance variables
+			key = StringUtils.toCamelCase(name());
 			this.text = text;
 		}
 
@@ -422,6 +498,141 @@ public class FilterDialog
 ////////////////////////////////////////////////////////////////////////
 
 
+	// CLASS: FILTER
+
+
+	private static class Filter
+		implements IPersistable, Cloneable
+	{
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance variables
+	////////////////////////////////////////////////////////////////////
+
+		private	String	pattern;
+		private	Scope	scope;
+		private	boolean	persistent;
+
+	////////////////////////////////////////////////////////////////////
+	//  Constructors
+	////////////////////////////////////////////////////////////////////
+
+		private Filter(
+			String	pattern,
+			Scope	scope,
+			boolean	persistent)
+		{
+			// Initialise instance variables
+			this.pattern = pattern;
+			this.scope = scope;
+			this.persistent = persistent;
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance methods : IPersistable interface
+	////////////////////////////////////////////////////////////////////
+
+		/**
+		 * {@inheritDoc}
+		 */
+
+		@Override
+		public String getText(
+			int	index)
+		{
+			return switch (index)
+			{
+				case 0  -> pattern;
+				case 1  -> scope.text;
+				default -> throw new UnexpectedRuntimeException();
+			};
+		}
+
+		//--------------------------------------------------------------
+
+		/**
+		 * {@inheritDoc}
+		 */
+
+		@Override
+		public boolean isPersistent()
+		{
+			return persistent;
+		}
+
+		//--------------------------------------------------------------
+
+		/**
+		 * {@inheritDoc}
+		 */
+
+		@Override
+		public void setPersistent(
+			boolean	persistent)
+		{
+			this.persistent = persistent;
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance methods : overriding methods
+	////////////////////////////////////////////////////////////////////
+
+		/**
+		 * {@inheritDoc}
+		 */
+
+		@Override
+		public boolean equals(
+			Object	obj)
+		{
+			if (this == obj)
+				return true;
+
+			return (obj instanceof Filter other) && Objects.equals(pattern, other.pattern) && (scope == other.scope);
+		}
+
+		//--------------------------------------------------------------
+
+		/**
+		 * {@inheritDoc}
+		 */
+
+		@Override
+		public int hashCode()
+		{
+			return 31 * Objects.hashCode(pattern) + Objects.hashCode(scope);
+		}
+
+		//--------------------------------------------------------------
+
+		/**
+		 * {@inheritDoc}
+		 */
+
+		@Override
+		public Filter clone()
+		{
+			try
+			{
+				return (Filter)super.clone();
+			}
+			catch (CloneNotSupportedException e)
+			{
+				throw new UnexpectedRuntimeException(e);
+			}
+		}
+
+		//--------------------------------------------------------------
+
+	}
+
+	//==================================================================
+
+
 	// CLASS: STATE
 
 
@@ -436,18 +647,17 @@ public class FilterDialog
 		/** Keys of properties. */
 		private interface PropertyKey
 		{
-			String	PATTERN_INDEX	= "patternIndex";
-			String	PATTERNS		= "patterns";
+			String	FILTERS	= "filters";
+			String	PATTERN	= "pattern";
+			String	SCOPE	= "scope";
 		}
 
 	////////////////////////////////////////////////////////////////////
 	//  Instance variables
 	////////////////////////////////////////////////////////////////////
 
-		private String			pattern;
-		private List<String>	patterns;
-		private int				patternIndex;
-		private	Scope			scope;
+		private Filter			filter;
+		private List<Filter>	filters;
 
 	////////////////////////////////////////////////////////////////////
 	//  Constructors
@@ -459,9 +669,7 @@ public class FilterDialog
 			super(true, true);
 
 			// Initialise instance variables
-			patterns = new ArrayList<>();
-			patternIndex = -1;
-			scope = Scope.FILENAME;
+			filters = new ArrayList<>();
 		}
 
 		//--------------------------------------------------------------
@@ -493,17 +701,23 @@ public class FilterDialog
 			// Call superclass method
 			MapNode rootNode = super.encodeTree();
 
-			// Encode patterns and pattern index
-			if (!patterns.isEmpty())
+			// Encode filters
+			if (filters.stream().anyMatch(filter -> filter.persistent))
 			{
-				// Encode patterns
-				ListNode patternsNode = rootNode.addList(PropertyKey.PATTERNS);
-				for (String pattern : patterns)
-					patternsNode.addString(pattern);
+				// Encode filters
+				ListNode filtersNode = rootNode.addList(PropertyKey.FILTERS);
+				for (int i = 0; i < filters.size(); i++)
+				{
+					Filter filter = filters.get(i);
+					if (filter.persistent)
+					{
+						MapNode filterNode = new MapNode();
+						filterNode.addString(PropertyKey.PATTERN, filter.pattern);
+						filterNode.addString(PropertyKey.SCOPE, filter.scope.key);
 
-				// Encode pattern index
-				if (patternIndex >= 0)
-					rootNode.addInt(PropertyKey.PATTERN_INDEX, patternIndex);
+						filtersNode.add(filterNode);
+					}
+				}
 			}
 
 			// Return root node
@@ -523,17 +737,25 @@ public class FilterDialog
 			// Call superclass method
 			super.decodeTree(rootNode);
 
-			// Decode patterns
-			String key = PropertyKey.PATTERNS;
+			// Decode filters
+			String key = PropertyKey.FILTERS;
 			if (rootNode.hasList(key))
 			{
-				patterns.clear();
-				for (StringNode node : rootNode.getListNode(key).stringNodes())
-					patterns.add(node.getValue());
-			}
+				// Clear filters
+				filters.clear();
 
-			// Decode pattern index
-			patternIndex = rootNode.getInt(PropertyKey.PATTERN_INDEX, -1);
+				// Decode filters
+				for (MapNode node : rootNode.getListNode(key).mapNodes())
+				{
+					key = PropertyKey.PATTERN;
+					if (node.hasString(key))
+					{
+						Scope scope = node.getEnumValue(Scope.class, PropertyKey.SCOPE, value -> value.key,
+														Scope.FILENAME);
+						filters.add(new Filter(node.getString(key), scope, true));
+					}
+				}
+			}
 		}
 
 		//--------------------------------------------------------------
@@ -562,69 +784,97 @@ public class FilterDialog
 	//==================================================================
 
 
-	// CLASS: 'EDIT PATTERNS' DIALOG
+	// CLASS: DIALOG FOR EDITING A LIST OF FILTERS
 
 
-	private static class EditPatternsDialog
-		extends SimpleModalDialog<List<String>>
+	private static class FilterListDialog
+		extends SimpleModalDialog<List<Filter>>
 	{
 
 	////////////////////////////////////////////////////////////////////
 	//  Constants
 	////////////////////////////////////////////////////////////////////
 
-		private static final	double	LIST_VIEW_WIDTH		= 520.0;
-		private static final	double	LIST_VIEW_HEIGHT	= 240.0;
+		private static final	double	PATTERN_COLUMN_WIDTH_FACTOR	= 20.0;
+
+		private static final	double	TABLE_VIEW_HEIGHT	= 240.0;
 
 		private static final	Insets	EDITOR_BUTTON_PANE_PADDING	= new Insets(2.0, 6.0, 2.0, 0.0);
 
 		private static final	Insets	CONTENT_PANE_PADDING	= new Insets(2.0);
 
-		private static final	String	EDIT_NAME	= "pattern";
-		private static final	String	EDIT_LABEL	= "Pattern";
+		private static final	String	EDIT_NAME	= "filter";
 
-		private static final	String	REMOVE_PATTERN_STR	= "Remove pattern";
-		private static final	String	REMOVE_QUESTION_STR	= "Pattern: %s" + MessageDialog.MESSAGE_SEPARATOR
-																+ "Do you want to remove the selected pattern?";
-		private static final	String	REMOVE_STR			= "Remove";
+		// Miscellaneous strings
+		private static final	String	REMOVE_FILTER_STR		= "Remove filter";
+		private static final	String	REMOVE_QUESTION_STR		= "Filter: %s" + MessageConstants.LABEL_SEPARATOR
+																	+ "Do you want to remove the selected filter?";
+		private static final	String	REMOVE_STR				= "Remove";
+		private static final	String	SAVE_SELECTED_STR		= "Save selected filters";
+		private static final	String	DONT_SAVE_SELECTED_STR	= "Don't save selected filters";
 
 	////////////////////////////////////////////////////////////////////
 	//  Instance variables
 	////////////////////////////////////////////////////////////////////
 
-		private	List<String>	result;
+		/** The result of this dialog. */
+		private	List<Filter>	result;
 
 	////////////////////////////////////////////////////////////////////
 	//  Constructors
 	////////////////////////////////////////////////////////////////////
 
-		private EditPatternsDialog(
+		private FilterListDialog(
 			Window			owner,
-			List<String>	patterns)
+			List<Filter>	filters)
 		{
 			// Call superclass constructor
-			super(owner, MethodHandles.lookup().lookupClass().getCanonicalName(), EDIT_PATTERNS_STR);
+			super(owner, MethodHandles.lookup().lookupClass().getCanonicalName(), EDIT_FILTERS_STR);
 
 			// Set properties
 			setResizable(true);
 
-			// Create list view
-			SimpleTextListView<String> listView =
-					new SimpleTextListView<>(FXCollections.observableArrayList(patterns), null);
-			listView.setPrefSize(LIST_VIEW_WIDTH, LIST_VIEW_HEIGHT);
+			// Create column information for table view
+			List<PersistableItemTableView.ColumnInfo> columnInfos = List.of(
+				new PersistableItemTableView.ColumnInfo(PATTERN_STR,
+														TextUtils.textHeightCeil(PATTERN_COLUMN_WIDTH_FACTOR)),
+				new PersistableItemTableView.ColumnInfo(
+						SCOPE_STR,
+						TextUtils.maxWidthCeil(Stream.of(Scope.values()).map(Scope::toString).toList()))
+			);
 
-			// Create list-view editor
+			// Create table view
+			PersistableItemTableView<Filter> tableView = new PersistableItemTableView<>(columnInfos);
+			tableView.setPrefHeight(TABLE_VIEW_HEIGHT);
+			tableView.setItems(filters.stream().map(filter -> filter.clone()).toList());
+			tableView.setMenuItemFactory(save ->
+			{
+				MenuItem menuItem = new MenuItem(save ? SAVE_SELECTED_STR : DONT_SAVE_SELECTED_STR);
+				Stream<Filter> selectedItems = tableView.getSelectionModel().getSelectedItems().stream();
+				menuItem.setDisable(save ? selectedItems.allMatch(item -> item.persistent)
+										 : selectedItems.noneMatch(item -> item.persistent));
+				menuItem.setOnAction(event ->
+				{
+					// Update 'persistent' flag of selected filters
+					for (Filter filter : tableView.getSelectionModel().getSelectedItems())
+						filter.persistent = save;
+
+					// Redraw table view
+					tableView.refresh();
+				});
+				return menuItem;
+			});
+
+			// Create table-view editor
 			Window window = this;
-			ListViewEditor<String> editor = new ListViewEditor<>(listView, new ListViewEditor.IEditor<>()
+			TableViewEditor.IEditor<Filter> editor0 = new TableViewEditor.IEditor<>()
 			{
 				@Override
-				public String edit(
-					ListViewEditor.Action	action,
-					String					target)
+				public Filter edit(
+					TableViewEditor.Action	action,
+					Filter					target)
 				{
-					return SingleTextFieldDialog.show(window, MethodHandles.lookup().lookupClass().getCanonicalName(),
-													  action + " " + EDIT_NAME, EDIT_LABEL, target, null,
-													  text -> !listView.getItems().contains(text));
+					return new EditFilterDialog(window, action + " " + EDIT_NAME, target).showDialog();
 				}
 
 				@Override
@@ -641,13 +891,20 @@ public class FilterDialog
 
 				@Override
 				public boolean confirmRemove(
-					String	pathname)
+					Filter	filter)
 				{
-					return ConfirmationDialog.show(window, REMOVE_PATTERN_STR, MessageIcon32.QUESTION.get(),
-												   String.format(REMOVE_QUESTION_STR, pathname), REMOVE_STR);
+					return ConfirmationDialog.show(window, REMOVE_FILTER_STR, MessageIcon32.QUESTION.get(),
+												   String.format(REMOVE_QUESTION_STR, filter.pattern), REMOVE_STR);
 				}
-			},
-			false);
+			};
+			TableViewEditor<Filter> editor = new TableViewEditor<>(tableView, editor0, false)
+			{
+				@Override
+				public List<Filter> getItems()
+				{
+					return tableView.getItemList();
+				}
+			};
 			editor.getButtonPane().setPadding(EDITOR_BUTTON_PANE_PADDING);
 
 			// Add list-view editor to content
@@ -657,23 +914,26 @@ public class FilterDialog
 			getContentPane().setPadding(CONTENT_PANE_PADDING);
 
 			// Create button: OK
-			Button okButton = new Button(OK_STR);
+			Button okButton = Buttons.hNoShrink(OK_STR);
 			okButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 			okButton.setOnAction(event ->
 			{
-				result = listView.getItems();
+				result = tableView.getItems();
 				requestClose();
 			});
 			addButton(okButton, HPos.RIGHT);
 
 			// Create button: cancel
-			Button cancelButton = new Button(CANCEL_STR);
+			Button cancelButton = Buttons.hNoShrink(CANCEL_STR);
 			cancelButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 			cancelButton.setOnAction(event -> requestClose());
 			addButton(cancelButton, HPos.RIGHT);
 
 			// Fire 'cancel' button if Escape key is pressed; fire 'OK' button if Ctrl+Enter is pressed
 			setKeyFireButton(cancelButton, okButton);
+
+			// Apply sheet to scene
+			applyStyleSheet();
 		}
 
 		//--------------------------------------------------------------
@@ -683,7 +943,142 @@ public class FilterDialog
 	////////////////////////////////////////////////////////////////////
 
 		@Override
-		protected List<String> getResult()
+		protected List<Filter> getResult()
+		{
+			return result;
+		}
+
+		//--------------------------------------------------------------
+
+	}
+
+	//==================================================================
+
+
+	// CLASS: DIALOG FOR EDITING A FILTER
+
+
+	private static class EditFilterDialog
+		extends SimpleModalDialog<Filter>
+	{
+
+	////////////////////////////////////////////////////////////////////
+	//  Constants
+	////////////////////////////////////////////////////////////////////
+
+		/** The horizontal gap between adjacent columns of the control pane. */
+		private static final	double	CONTROL_PANE_H_GAP	= 6.0;
+
+		/** The vertical gap between adjacent rows of the control pane. */
+		private static final	double	CONTROL_PANE_V_GAP	= 6.0;
+
+		// Miscellaneous strings
+		private static final	String	SAVE_BEYOND_SESSION_STR	= "Save the filter beyond the current session";
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance variables
+	////////////////////////////////////////////////////////////////////
+
+		/** The result of this dialog. */
+		private	Filter	result;
+
+	////////////////////////////////////////////////////////////////////
+	//  Constructors
+	////////////////////////////////////////////////////////////////////
+
+		private EditFilterDialog(
+			Window	owner,
+			String	title,
+			Filter	filter)
+		{
+			// Call superclass constructor
+			super(owner, MethodHandles.lookup().lookupClass().getName(), null, title);
+
+			// Create control pane
+			GridPane controlPane = new GridPane();
+			controlPane.setHgap(CONTROL_PANE_H_GAP);
+			controlPane.setVgap(CONTROL_PANE_V_GAP);
+			controlPane.setAlignment(Pos.CENTER);
+
+			// Initialise column constraints
+			ColumnConstraints column = new ColumnConstraints();
+			column.setMinWidth(Region.USE_PREF_SIZE);
+			column.setHalignment(HPos.RIGHT);
+			column.setHgrow(Priority.NEVER);
+			controlPane.getColumnConstraints().add(column);
+
+			column = new ColumnConstraints();
+			column.setHalignment(HPos.LEFT);
+			column.setHgrow(Priority.ALWAYS);
+			controlPane.getColumnConstraints().add(column);
+
+			// Initialise row index
+			int row = 0;
+
+			// Create text field: pattern
+			TextField patternField = new TextField((filter == null) ? null : filter.pattern);
+			patternField.setPrefColumnCount(PATTERN_FIELD_NUM_COLUMNS);
+			controlPane.addRow(row++, new Label(PATTERN_STR), patternField);
+
+			// Create spinner: scope
+			CollectionSpinner<Scope> scopeSpinner =
+					CollectionSpinner.leftRightH(HPos.CENTER, true, Scope.class,
+												 (filter == null) ? Scope.FILENAME : filter.scope, null, null);
+			controlPane.addRow(row++, new Label(SCOPE_STR), scopeSpinner);
+
+			// Create check box: persistent
+			CheckBox persistentCheckBox = new CheckBox(SAVE_BEYOND_SESSION_STR);
+			persistentCheckBox.setSelected((filter != null) && filter.persistent);
+			GridPane.setMargin(persistentCheckBox, new Insets(2.0, 0.0, 2.0, 0.0));
+			controlPane.add(persistentCheckBox, 1, row);
+
+			// Add control pane to content pane
+			addContent(controlPane);
+
+			// Create button: OK
+			Button okButton = Buttons.hNoShrink(OK_STR);
+			okButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
+			okButton.setOnAction(event ->
+			{
+				result = new Filter(patternField.getText(), scopeSpinner.getItem(), persistentCheckBox.isSelected());
+				requestClose();
+			});
+			addButton(okButton, HPos.RIGHT);
+
+			// Create procedure to update 'OK' button
+			IProcedure0 updateOkButton = () ->
+					okButton.setDisable(StringUtils.isNullOrBlank(patternField.getText()));
+
+			// Update 'OK' button when pattern changes
+			patternField.textProperty().addListener(observable -> updateOkButton.invoke());
+
+			// Fire 'OK' button if Enter key is pressed in pattern field
+			patternField.setOnAction(event -> okButton.fire());
+
+			// Update 'OK' button
+			updateOkButton.invoke();
+
+			// Create button: cancel
+			Button cancelButton = Buttons.hNoShrink(CANCEL_STR);
+			cancelButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
+			cancelButton.setOnAction(event -> requestClose());
+			addButton(cancelButton, HPos.RIGHT);
+
+			// Fire 'cancel' button if Escape key is pressed; fire 'OK' button if Ctrl+Enter is pressed
+			setKeyFireButton(cancelButton, okButton);
+
+			// Apply sheet to scene
+			applyStyleSheet();
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance methods : overriding methods
+	////////////////////////////////////////////////////////////////////
+
+		@Override
+		protected Filter getResult()
 		{
 			return result;
 		}

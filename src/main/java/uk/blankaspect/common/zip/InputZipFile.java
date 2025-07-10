@@ -141,10 +141,10 @@ public class InputZipFile
 	/**
 	 * Opens this zip file for reading.
 	 *
-	 * @throws FileException
-	 *           if an error occurred when opening the file.
 	 * @throws IllegalStateException
 	 *           if this file is already open.
+	 * @throws FileException
+	 *           if an error occurs when opening the file.
 	 */
 
 	public void open()
@@ -199,10 +199,10 @@ public class InputZipFile
 	/**
 	 * Closes this zip file.
 	 *
-	 * @throws FileException
-	 *           if an error occurred when closing the file.
 	 * @throws IllegalStateException
 	 *           if this file is not open.
+	 * @throws FileException
+	 *           if an error occurs when closing the file.
 	 */
 
 	public void close()
@@ -340,7 +340,7 @@ public class InputZipFile
 		 * @param entry
 		 *          the zip-file entry with which the exception will be associated, which may be {@code null}.
 		 * @param replacements
-		 *          the objects whose string representations will replace placeholders in {@code message}.
+		 *          the items whose string representations will replace placeholders in {@code message}.
 		 */
 
 		public ZipEntryException(
@@ -368,7 +368,7 @@ public class InputZipFile
 		 * @param entry
 		 *          the zip-file entry with which the exception will be associated, which may be {@code null}.
 		 * @param replacements
-		 *          the objects whose string representations will replace placeholders in {@code message}.
+		 *          the items whose string representations will replace placeholders in {@code message}.
 		 */
 
 		public ZipEntryException(

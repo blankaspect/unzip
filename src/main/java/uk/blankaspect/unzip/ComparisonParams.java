@@ -29,6 +29,8 @@ import uk.blankaspect.common.basictree.ListNode;
 import uk.blankaspect.common.basictree.MapNode;
 import uk.blankaspect.common.basictree.StringNode;
 
+import uk.blankaspect.common.exception2.UnexpectedRuntimeException;
+
 import uk.blankaspect.common.namefilter.LocationFilter;
 import uk.blankaspect.common.namefilter.PatternKind;
 
@@ -39,6 +41,7 @@ import uk.blankaspect.common.namefilter.PatternKind;
 
 
 public class ComparisonParams
+	implements IPersistable, Cloneable
 {
 
 ////////////////////////////////////////////////////////////////////////
@@ -50,7 +53,8 @@ public class ComparisonParams
 	{
 		String	FIELDS			= "fields";
 		String	FILTERS			= "filters";
-		String	INCLUSIVE		= "inclusive";
+		String	INCLUSIVE		= "inclusive";		// (XXX legacy)
+		String	KIND			= "kind";
 		String	NAME			= "name";
 		String	PATTERN			= "pattern";
 		String	PATTERN_KIND	= "patternKind";
@@ -63,18 +67,26 @@ public class ComparisonParams
 	private	String							name;
 	private	List<LocationFilter>			filters;
 	private	Set<ZipFileComparison.Field>	fields;
+	private	boolean							persistent;
 
 ////////////////////////////////////////////////////////////////////////
 //  Constructors
 ////////////////////////////////////////////////////////////////////////
 
-	public ComparisonParams(
-		String	name)
+	public ComparisonParams()
 	{
-		// Initialise instance variables
-		this.name = name;
-		filters = new ArrayList<>();
-		fields = EnumSet.noneOf(ZipFileComparison.Field.class);
+		// Call alternative constructor
+		this("", true);
+	}
+
+	//------------------------------------------------------------------
+
+	public ComparisonParams(
+		String	name,
+		boolean	persistent)
+	{
+		// Call alternative constructor
+		this(name, Collections.emptyList(), EnumSet.noneOf(ZipFileComparison.Field.class), persistent);
 	}
 
 	//------------------------------------------------------------------
@@ -82,7 +94,8 @@ public class ComparisonParams
 	public ComparisonParams(
 		String									name,
 		Collection<? extends LocationFilter>	filters,
-		Collection<ZipFileComparison.Field>		fields)
+		Collection<ZipFileComparison.Field>		fields,
+		boolean									persistent)
 	{
 		// Validate arguments
 		if (name == null)
@@ -96,6 +109,79 @@ public class ComparisonParams
 		this.name = name;
 		this.filters = new ArrayList<>(filters);
 		this.fields = fields.isEmpty() ? EnumSet.noneOf(ZipFileComparison.Field.class) : EnumSet.copyOf(fields);
+		this.persistent = persistent;
+	}
+
+	//------------------------------------------------------------------
+
+////////////////////////////////////////////////////////////////////////
+//  Instance methods : IPersistable interface
+////////////////////////////////////////////////////////////////////////
+
+	/**
+	 * {@inheritDoc}
+	 */
+
+	@Override
+	public String getText(
+		int	index)
+	{
+		return switch (index)
+		{
+			case 0  -> name;
+			default -> throw new UnexpectedRuntimeException();
+		};
+	}
+
+	//------------------------------------------------------------------
+
+	/**
+	 * {@inheritDoc}
+	 */
+
+	@Override
+	public boolean isPersistent()
+	{
+		return persistent;
+	}
+
+	//------------------------------------------------------------------
+
+	/**
+	 * {@inheritDoc}
+	 */
+
+	@Override
+	public void setPersistent(
+		boolean	persistent)
+	{
+		this.persistent = persistent;
+	}
+
+	//------------------------------------------------------------------
+
+////////////////////////////////////////////////////////////////////////
+//  Instance methods : overriding methods
+////////////////////////////////////////////////////////////////////////
+
+	/**
+	 * {@inheritDoc}
+	 */
+
+	@Override
+	public ComparisonParams clone()
+	{
+		try
+		{
+			ComparisonParams copy = (ComparisonParams)super.clone();
+			copy.filters = new ArrayList<>(filters);
+			copy.fields = EnumSet.copyOf(fields);
+			return copy;
+		}
+		catch (CloneNotSupportedException e)
+		{
+			throw new UnexpectedRuntimeException(e);
+		}
 	}
 
 	//------------------------------------------------------------------
@@ -152,8 +238,8 @@ public class ComparisonParams
 				MapNode filterNode = new MapNode();
 				filtersNode.add(filterNode);
 
-				// Encode 'inclusive' flag
-				filterNode.addBoolean(PropertyKey.INCLUSIVE, filter.isInclusive());
+				// Encode filter kind
+				filterNode.addString(PropertyKey.KIND, filter.getKind().key());
 
 				// Encode pattern kind
 				PatternKind patternKind = filter.getPatternKind();
@@ -205,19 +291,30 @@ public class ComparisonParams
 		{
 			for (MapNode filterNode : rootNode.getListNode(key).mapNodes())
 			{
-				// Decode 'inclusive' flag
-				boolean inclusive = filterNode.getBoolean(PropertyKey.INCLUSIVE, true);
+				// Decode filter kind
+				LocationFilter.Kind kind = filterNode.getEnumValue(LocationFilter.Kind.class, PropertyKey.KIND,
+																   LocationFilter.Kind::key, null);
+				// (XXX legacy)
+				if (kind == null)
+				{
+					kind = filterNode.hasBoolean(PropertyKey.INCLUSIVE) ? LocationFilter.Kind.INCLUDE
+																		: LocationFilter.Kind.EXCLUDE;
+				}
 
 				// Decode pattern kind
 				PatternKind patternKind = filterNode.getEnumValue(PatternKind.class, PropertyKey.PATTERN_KIND,
 																  PatternKind::getKey, null);
 
-				// Decode pattern
-				String pattern = filterNode.getString(PropertyKey.PATTERN, null);
+				// Decode pattern; add filter to list
+				if (patternKind != null)
+				{
+					// Decode pattern
+					String pattern = filterNode.getString(PropertyKey.PATTERN, null);
 
-				// Add filter to list
-				if ((patternKind != null) && (pattern != null))
-					filters.add(new LocationFilter(inclusive, patternKind, pattern));
+					// Create filter and add it to list
+					if (pattern != null)
+						filters.add(new LocationFilter(kind, patternKind, pattern));
+				}
 			}
 		}
 

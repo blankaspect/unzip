@@ -26,22 +26,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javafx.collections.ObservableList;
+import javafx.application.Platform;
 
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
-import javafx.event.EventTarget;
+import javafx.beans.InvalidationListener;
 
 import javafx.geometry.Insets;
 
 import javafx.scene.Node;
 
-import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBase;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
-
-import javafx.scene.image.Image;
 
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -50,6 +45,7 @@ import javafx.scene.input.MouseEvent;
 
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
 import javafx.scene.paint.Color;
@@ -57,10 +53,10 @@ import javafx.scene.paint.Color;
 import uk.blankaspect.common.css.CssSelector;
 
 import uk.blankaspect.common.function.IProcedure0;
-import uk.blankaspect.common.function.IProcedure2;
 
+import uk.blankaspect.ui.jfx.button.Buttons;
 import uk.blankaspect.ui.jfx.button.GraphicButton;
-import uk.blankaspect.ui.jfx.button.ImageButton;
+import uk.blankaspect.ui.jfx.button.ImageDataButton;
 
 import uk.blankaspect.ui.jfx.image.EditorButtonImages01;
 
@@ -119,20 +115,20 @@ public class ListViewEditor<T>
 			FxProperty.FILL,
 			ColourKey.GRAPHIC_BUTTON_BACKGROUND,
 			CssSelector.builder()
-						.cls(StyleClass.LIST_VIEW_EDITOR)
-						.desc(GraphicButton.StyleClass.GRAPHIC_BUTTON).pseudo(GraphicButton.PseudoClassKey.INACTIVE)
-						.desc(GraphicButton.StyleClass.INNER_VIEW)
-						.build()
+					.cls(StyleClass.LIST_VIEW_EDITOR)
+					.desc(GraphicButton.StyleClass.GRAPHIC_BUTTON).pseudo(GraphicButton.PseudoClassKey.INACTIVE)
+					.desc(GraphicButton.StyleClass.INNER_VIEW)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.STROKE,
 			ColourKey.GRAPHIC_BUTTON_BORDER,
 			CssSelector.builder()
-						.cls(StyleClass.LIST_VIEW_EDITOR)
-						.desc(GraphicButton.StyleClass.GRAPHIC_BUTTON).pseudo(GraphicButton.PseudoClassKey.INACTIVE)
-						.desc(GraphicButton.StyleClass.INNER_VIEW)
-						.build()
+					.cls(StyleClass.LIST_VIEW_EDITOR)
+					.desc(GraphicButton.StyleClass.GRAPHIC_BUTTON).pseudo(GraphicButton.PseudoClassKey.INACTIVE)
+					.desc(GraphicButton.StyleClass.INNER_VIEW)
+					.build()
 		)
 	);
 
@@ -170,8 +166,12 @@ public class ListViewEditor<T>
 
 	static
 	{
-		// Register the style properties of this class with the style manager
-		StyleManager.INSTANCE.register(ListViewEditor.class, COLOUR_PROPERTIES, ListViewStyle.class);
+		// Register the style properties of this class and its dependencies with the style manager
+		StyleManager.INSTANCE.register(ListViewEditor.class, COLOUR_PROPERTIES,
+									   ListViewStyle.class);
+
+		// Initialise button images
+		EditorButtonImages01.init();
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -184,7 +184,7 @@ public class ListViewEditor<T>
 	 * @param listView
 	 *          the list view that will be contained by this editor.
 	 * @param editor
-	 *          the editor that will be used to manage operations on the list.
+	 *          the editor that will be used to manage actions on the list.
 	 * @param imageButtons
 	 *          if {@code true}, the action buttons will contain images; otherwise, they will contain text.
 	 */
@@ -207,10 +207,15 @@ public class ListViewEditor<T>
 
 		// Create button pane
 		buttonPane = new VBox(imageButtons ? VGAP_IMAGE_BUTTONS : VGAP_TEXT_BUTTONS);
+		buttonPane.setMinWidth(Region.USE_PREF_SIZE);
 
-		// Create factory for action button
-		IProcedure2<Action, EventHandler<ActionEvent>> buttonFactory = (action, actionHandler) ->
+		// Create buttons
+		for (Action action : editor.getActions())
 		{
+			// Don't create button for unsupported action
+			if (!editor.getActions().contains(action))
+				continue;
+
 			// Initialise button
 			ButtonBase button = null;
 
@@ -218,7 +223,7 @@ public class ListViewEditor<T>
 			if (imageButtons)
 			{
 				// Create button
-				ImageButton imageButton = new ImageButton(action.image, action.text);
+				ImageDataButton imageButton = new ImageDataButton(action.imageId, action.text);
 
 				// Set button properties
 				imageButton.setPadding(Insets.EMPTY);
@@ -233,106 +238,132 @@ public class ListViewEditor<T>
 			else
 			{
 				// Create button
-				button = new Button(action.text + ((editor.hasDialog() && action.content) ? ELLIPSIS_STR : ""));
+				button = Buttons.hNoShrink(action.text + ((editor.hasDialog() && action.content) ? ELLIPSIS_STR : ""));
 
 				// Set button properties
 				button.setMaxWidth(Double.MAX_VALUE);
-				button.setMinHeight(USE_PREF_SIZE);
+				button.setMinHeight(Region.USE_PREF_SIZE);
 				button.setPadding(BUTTON_PADDING);
 			}
 
 			// Set action-event handler
-			button.setOnAction(actionHandler);
+			button.setOnAction(event ->
+			{
+				boolean singleSelection = (listView.getSelectionModel().getSelectedIndices().size() == 1);
+				T item = listView.getSelectionModel().getSelectedItem();
+				boolean allowed = singleSelection && editor.allowAction(action, item);
+
+				switch (action)
+				{
+					case ADD:
+					{
+						if ((item == null) || allowed)
+						{
+							item = editor.edit(action, null);
+							if (item != null)
+							{
+								getItems().add(item);
+								int index = getEndIndex();
+								listView.getSelectionModel().select(index);
+								listView.scrollTo(index);
+							}
+						}
+						break;
+					}
+
+					case INSERT:
+					{
+						if (allowed)
+						{
+							int index = listView.getSelectionModel().getSelectedIndex();
+							item = editor.edit(action, null);
+							if (item != null)
+							{
+								getItems().add(index, item);
+								listView.getSelectionModel().select(index);
+								listView.scrollTo(index);
+							}
+						}
+						break;
+					}
+
+					case EDIT:
+					{
+						if (allowed)
+						{
+							int index = listView.getSelectionModel().getSelectedIndex();
+							item = editor.edit(action, getItems().get(index));
+							if (item != null)
+								getItems().set(index, item);
+						}
+						break;
+					}
+
+					case REMOVE:
+					{
+						if (allowed)
+						{
+							// Get selected index
+							int index = listView.getSelectionModel().getSelectedIndex();
+
+							// If removal of item is confirmed, remove it
+							if (editor.confirmRemove(item))
+								getItems().remove(index);
+						}
+						break;
+					}
+
+					case MOVE_UP:
+					{
+						if (allowed)
+						{
+							int index = listView.getSelectionModel().getSelectedIndex();
+							if (index > 0)
+							{
+								item = getItems().remove(index);
+								getItems().add(--index, item);
+								listView.getSelectionModel().select(index);
+								listView.scrollTo(index);
+							}
+						}
+						break;
+					}
+
+					case MOVE_DOWN:
+					{
+						if (allowed)
+						{
+							int index = listView.getSelectionModel().getSelectedIndex();
+							if (index < getEndIndex())
+							{
+								item = getItems().remove(index);
+								getItems().add(++index, item);
+								listView.getSelectionModel().select(index);
+								listView.scrollTo(index);
+							}
+						}
+						break;
+					}
+				}
+			});
 
 			// Add button to map
 			buttons.put(action, button);
 
 			// Add button to container
 			buttonPane.getChildren().add(button);
-		};
 
-		// Create button: add
-		if (editor.getActions().contains(Action.ADD))
-		{
-			buttonFactory.invoke(Action.ADD, event ->
+			// Remove selected item if mouse is clicked on 'remove' button with Shift key down and item is removable
+			if ((action == Action.REMOVE) && editor.allowUnconditionalRemoval())
 			{
-				T item = editor.edit(Action.ADD, null);
-				if (item != null)
+				button.addEventHandler(MouseEvent.MOUSE_CLICKED, event ->
 				{
-					getItems().add(item);
-					int index = getEndIndex();
-					listView.getSelectionModel().select(index);
-					listView.scrollTo(index);
-				}
-			});
-		}
-
-		// Create button: insert
-		if (editor.getActions().contains(Action.INSERT))
-		{
-			buttonFactory.invoke(Action.INSERT, event ->
-			{
-				int index = listView.getSelectionModel().getSelectedIndex();
-				if (index >= 0)
-				{
-					T item = editor.edit(Action.INSERT, null);
-					if (item != null)
+					if ((event.getButton() == MouseButton.PRIMARY) && event.isShiftDown())
 					{
-						getItems().add(index, item);
-						listView.getSelectionModel().select(index);
-						listView.scrollTo(index);
-					}
-				}
-			});
-		}
-
-		// Create button: edit
-		if (editor.getActions().contains(Action.EDIT))
-		{
-			buttonFactory.invoke(Action.EDIT, event ->
-			{
-				int index = listView.getSelectionModel().getSelectedIndex();
-				if (index >= 0)
-				{
-					T item = editor.edit(Action.EDIT, getItems().get(index));
-					if (item != null)
-						getItems().set(index, item);
-				}
-			});
-		}
-
-		// Create button: remove
-		if (editor.getActions().contains(Action.REMOVE))
-		{
-			// Create button
-			buttonFactory.invoke(Action.REMOVE, event ->
-			{
-				T item = listView.getSelectionModel().getSelectedItem();
-				if (editor.isRemovable(item))
-				{
-					// Get selected index
-					int index = listView.getSelectionModel().getSelectedIndex();
-
-					// If an item is selected and its removal is confirmed, remove it
-					if ((index >= 0) && editor.confirmRemove(item))
-						getItems().remove(index);
-				}
-			});
-
-			// Remove selected item unconditionally if mouse is clicked on 'remove' button with Shift key down
-			if (editor.allowUnconditionalRemoval())
-			{
-				buttons.get(Action.REMOVE).addEventHandler(MouseEvent.MOUSE_CLICKED, event ->
-				{
-					if ((event.getButton() == MouseButton.PRIMARY) && event.isShiftDown()
-							&& editor.isRemovable(listView.getSelectionModel().getSelectedItem()))
-					{
-						// Get selected index
-						int index = listView.getSelectionModel().getSelectedIndex();
-
-						// If an item is selected, remove it
-						if (index >= 0)
-							getItems().remove(index);
+						// If a removable item is selected, remove it
+						T item = listView.getSelectionModel().getSelectedItem();
+						if ((item != null) && editor.allowAction(action, item))
+							getItems().remove(listView.getSelectionModel().getSelectedIndex());
 
 						// Consume mouse event
 						event.consume();
@@ -349,47 +380,12 @@ public class ListViewEditor<T>
 				if (event.getCode() == KeyCode.DELETE)
 				{
 					T item = listView.getSelectionModel().getSelectedItem();
-					if (editor.isRemovable(item))
+					if ((item != null) && editor.allowAction(Action.REMOVE, item))
 					{
-						// Get selected index
-						int index = listView.getSelectionModel().getSelectedIndex();
-
-						// If an item is selected and its removal is allowed, remove it
-						if ((index >= 0) && (event.isShiftDown() || editor.confirmRemove(item)))
-							getItems().remove(index);
+						// Remove item if Shift key is pressed or removal of item is confirmed
+						if (event.isShiftDown() || editor.confirmRemove(item))
+							getItems().remove(listView.getSelectionModel().getSelectedIndex());
 					}
-				}
-			});
-		}
-
-		// Create button: move up
-		if (editor.getActions().contains(Action.MOVE_UP))
-		{
-			buttonFactory.invoke(Action.MOVE_UP, event ->
-			{
-				int index = listView.getSelectionModel().getSelectedIndex();
-				if (index > 0)
-				{
-					T item = getItems().remove(index);
-					getItems().add(--index, item);
-					listView.getSelectionModel().select(index);
-					listView.scrollTo(index);
-				}
-			});
-		}
-
-		// Create button: move down
-		if (editor.getActions().contains(Action.MOVE_DOWN))
-		{
-			buttonFactory.invoke(Action.MOVE_DOWN, event ->
-			{
-				int index = listView.getSelectionModel().getSelectedIndex();
-				if ((index >= 0) && (index < getEndIndex()))
-				{
-					T item = getItems().remove(index);
-					getItems().add(++index, item);
-					listView.getSelectionModel().select(index);
-					listView.scrollTo(index);
 				}
 			});
 		}
@@ -397,40 +393,45 @@ public class ListViewEditor<T>
 		// Create procedure to update buttons
 		IProcedure0 updateButtons = () ->
 		{
+			T item = listView.getSelectionModel().getSelectedItem();
 			int index = listView.getSelectionModel().getSelectedIndex();
-			boolean noSelection = (index < 0);
+			int numSelected = listView.getSelectionModel().getSelectedIndices().size();
+			boolean singleSelection = (numSelected == 1);
 
 			for (Action action : buttons.keySet())
 			{
 				ButtonBase button = buttons.get(action);
-				switch (action)
+				if (singleSelection && !editor.allowAction(action, item))
+					button.setDisable(true);
+				else
 				{
-					case ADD:
-						button.setDisable(false);
-						break;
+					switch (action)
+					{
+						case ADD:
+							button.setDisable(numSelected > 1);
+							break;
 
-					case INSERT:
-					case EDIT:
-						button.setDisable(noSelection);
-						break;
+						case INSERT:
+						case EDIT:
+						case REMOVE:
+							button.setDisable(!singleSelection);
+							break;
 
-					case REMOVE:
-						button.setDisable(noSelection || !editor.isRemovable(listView.getSelectionModel().getSelectedItem()));
-						break;
+						case MOVE_UP:
+							button.setDisable(!singleSelection && (index < 1));
+							break;
 
-					case MOVE_UP:
-						button.setDisable(index < 1);
-						break;
-
-					case MOVE_DOWN:
-						button.setDisable(noSelection || (index >= getEndIndex()));
-						break;
+						case MOVE_DOWN:
+							button.setDisable(!singleSelection || (index < 0) || (index >= getEndIndex()));
+							break;
+					}
 				}
 			}
 		};
 
 		// Update buttons when selection in list view changes
-		listView.getSelectionModel().selectedIndexProperty().addListener(observable -> updateButtons.invoke());
+		listView.getSelectionModel().getSelectedIndices().addListener((InvalidationListener) observable ->
+				Platform.runLater(updateButtons::invoke));
 
 		// Update buttons
 		updateButtons.invoke();
@@ -441,10 +442,13 @@ public class ListViewEditor<T>
 		{
 			listView.addEventHandler(MouseEvent.MOUSE_CLICKED, event ->
 			{
-				if ((event.getButton() == MouseButton.PRIMARY) && (event.getClickCount() == 2))
+				if ((event.getButton() == MouseButton.PRIMARY) && (event.getClickCount() == 2)
+						&& (event.getTarget() instanceof Node target))
 				{
-					ListCell<T> cell = findCell(event);
-					if ((cell != null) && (cell.getIndex() == listView.getSelectionModel().getSelectedIndex()))
+					Node node = SceneUtils.searchAscending(target, listView, false,
+														   node0 -> node0 instanceof ListCell<?>);
+					if ((node instanceof ListCell<?> cell)
+							&& (cell.getIndex() == listView.getSelectionModel().getSelectedIndex()))
 						button.fire();
 				}
 			});
@@ -461,12 +465,12 @@ public class ListViewEditor<T>
 ////////////////////////////////////////////////////////////////////////
 
 	/**
-	 * Returns the colour that is associated with the specified key in the colour map of the selected theme of the
+	 * Returns the colour that is associated with the specified key in the colour map of the current theme of the
 	 * {@linkplain StyleManager style manager}.
 	 *
 	 * @param  key
 	 *           the key of the desired colour.
-	 * @return the colour that is associated with {@code key} in the colour map of the selected theme of the style
+	 * @return the colour that is associated with {@code key} in the colour map of the current theme of the style
 	 *         manager, or {@link StyleManager#DEFAULT_COLOUR} if there is no such colour.
 	 */
 
@@ -509,12 +513,28 @@ public class ListViewEditor<T>
 	//------------------------------------------------------------------
 
 	/**
-	 * Returns an observable list of the items of the list view.
+	 * Returns the button that is associated with the specified action.
 	 *
-	 * @return an observable list of the items of the list view.
+	 * @param  action
+	 *           the action whose associated button is desired.
+	 * @return the button that is associated with {@code action}.
 	 */
 
-	public ObservableList<T> getItems()
+	public ButtonBase getButton(
+		Action	action)
+	{
+		return buttons.get(action);
+	}
+
+	//------------------------------------------------------------------
+
+	/**
+	 * Returns a list of the items of the list view.
+	 *
+	 * @return a list of the items of the list view.
+	 */
+
+	public List<T> getItems()
 	{
 		return listView.getItems();
 	}
@@ -530,25 +550,6 @@ public class ListViewEditor<T>
 	private int getEndIndex()
 	{
 		return listView.getItems().size() - 1;
-	}
-
-	//------------------------------------------------------------------
-
-	/**
-	 * Returns the cell of the list view that is the target of the specified mouse event.
-	 *
-	 * @param  event
-	 *           the mouse event for which the targetted cell of the list view is required.
-	 * @return the cell of the list view that is the target of {@code event}, or {@code null} if there is no such cell.
-	 */
-
-	@SuppressWarnings("unchecked")
-	private ListCell<T> findCell(
-		MouseEvent	event)
-	{
-		EventTarget target = event.getTarget();
-		Node node = SceneUtils.searchAscending((Node)target, listView, false, node0 -> node0 instanceof ListCell<?>);
-		return (node instanceof ListCell<?> cell) ? (ListCell<T>)cell : null;
 	}
 
 	//------------------------------------------------------------------
@@ -578,7 +579,7 @@ public class ListViewEditor<T>
 		ADD
 		(
 			"Add",
-			EditorButtonImages01.ADD,
+			EditorButtonImages01.ImageId.ADD,
 			true
 		),
 
@@ -588,7 +589,7 @@ public class ListViewEditor<T>
 		INSERT
 		(
 			"Insert",
-			EditorButtonImages01.INSERT,
+			EditorButtonImages01.ImageId.INSERT,
 			true
 		),
 
@@ -598,7 +599,7 @@ public class ListViewEditor<T>
 		EDIT
 		(
 			"Edit",
-			EditorButtonImages01.EDIT,
+			EditorButtonImages01.ImageId.EDIT,
 			true
 		),
 
@@ -608,7 +609,7 @@ public class ListViewEditor<T>
 		REMOVE
 		(
 			"Remove",
-			EditorButtonImages01.REMOVE,
+			EditorButtonImages01.ImageId.REMOVE,
 			false
 		),
 
@@ -618,7 +619,7 @@ public class ListViewEditor<T>
 		MOVE_UP
 		(
 			"Move up",
-			EditorButtonImages01.MOVE_UP,
+			EditorButtonImages01.ImageId.MOVE_UP,
 			false
 		),
 
@@ -628,7 +629,7 @@ public class ListViewEditor<T>
 		MOVE_DOWN
 		(
 			"Move down",
-			EditorButtonImages01.MOVE_DOWN,
+			EditorButtonImages01.ImageId.MOVE_DOWN,
 			false
 		);
 
@@ -639,8 +640,8 @@ public class ListViewEditor<T>
 		/** The text that represents this action. */
 		private	String	text;
 
-		/** The image that represents this action. */
-		private	Image	image;
+		/** The identifier of the image that represents this action. */
+		private	String	imageId;
 
 		/** Flag: if (@code true}, this action relates to the content of an item. */
 		private	boolean	content;
@@ -654,27 +655,27 @@ public class ListViewEditor<T>
 		 *
 		 * @param text
 		 *          the text that will represent the action.
-		 * @param image
-		 *          the image that will represent the action.
+		 * @param imageId
+		 *          the identifier of the image that will represent the action.
 		 * @param content
 		 *          if (@code true}, the action relates to the content of an item.
 		 */
 
 		private Action(
 			String	text,
-			Image	image,
+			String	imageId,
 			boolean	content)
 		{
 			// Initialise instance variables
 			this.text = text;
-			this.image = image;
+			this.imageId = imageId;
 			this.content = content;
 		}
 
 		//--------------------------------------------------------------
 
 	////////////////////////////////////////////////////////////////////
-	//  Instance methods
+	//  Instance methods : overriding methods
 	////////////////////////////////////////////////////////////////////
 
 		/**
@@ -717,6 +718,40 @@ public class ListViewEditor<T>
 	////////////////////////////////////////////////////////////////////
 
 		/**
+		 * Returns the {@linkplain Action actions} that are supported by this editor.  By default, this method returns
+		 * all the available actions.
+		 *
+		 * @return the actions that are supported by this editor.
+		 */
+
+		default Set<Action> getActions()
+		{
+			return EnumSet.allOf(Action.class);
+		}
+
+		//--------------------------------------------------------------
+
+		/**
+		 * Returns {@code true} if the specified action may be performed on the specified item.  By default, this method
+		 * returns {@code true}.
+		 *
+		 * @param  action
+		 *           the action to be performed.
+		 * @param  item
+		 *           the item of interest.
+		 * @return {@code true} if {@code action} may be performed on {@code item}.
+		 */
+
+		default boolean allowAction(
+			Action	action,
+			T		item)
+		{
+			return true;
+		}
+
+		//--------------------------------------------------------------
+
+		/**
 		 * Edits the specified item and returns the result.
 		 *
 		 * @param  action
@@ -729,20 +764,6 @@ public class ListViewEditor<T>
 		T edit(
 			Action	action,
 			T		item);
-
-		//--------------------------------------------------------------
-
-		/**
-		 * Returns the {@linkplain Action actions} that are supported by this editor.  By default, this method returns
-		 * all the available actions.
-		 *
-		 * @return the actions that are supported by this editor.
-		 */
-
-		default Set<Action> getActions()
-		{
-			return EnumSet.allOf(Action.class);
-		}
 
 		//--------------------------------------------------------------
 
@@ -765,23 +786,6 @@ public class ListViewEditor<T>
 		 */
 
 		default boolean allowUnconditionalRemoval()
-		{
-			return true;
-		}
-
-		//--------------------------------------------------------------
-
-		/**
-		 * Returns {@code true} if the specified item may be removed from the list.  By default, this method returns
-		 * {@code true}.
-		 *
-		 * @param  item
-		 *           the item of interest.
-		 * @return {@code true} if {@code item} may be removed from the list.
-		 */
-
-		default boolean isRemovable(
-			T	item)
 		{
 			return true;
 		}

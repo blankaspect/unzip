@@ -18,17 +18,23 @@ package uk.blankaspect.common.namefilter;
 // IMPORTS
 
 
+import java.nio.file.Files;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 
-import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 import java.util.regex.PatternSyntaxException;
 
+import java.util.stream.Stream;
+
 import uk.blankaspect.common.exception2.BaseException;
+
+import uk.blankaspect.common.string.StringUtils;
 
 //----------------------------------------------------------------------
 
@@ -56,6 +62,28 @@ public class LocationFilter
 	/** An inclusive filter that matches all file-system locations. */
 	public static final	LocationFilter	INCLUDE_ALL	= new LocationFilter();
 
+	/** An inclusive filter that matches all regular files. */
+	public static final	LocationFilter	INCLUDE_ALL_FILES	= new LocationFilter()
+	{
+		@Override
+		public boolean matches(
+			Path	location)
+		{
+			return Files.isRegularFile(location, LinkOption.NOFOLLOW_LINKS);
+		}
+	};
+
+	/** An inclusive filter that matches all directories. */
+	public static final	LocationFilter	INCLUDE_ALL_DIRECTORIES	= new LocationFilter()
+	{
+		@Override
+		public boolean matches(
+			Path	location)
+		{
+			return Files.isDirectory(location, LinkOption.NOFOLLOW_LINKS);
+		}
+	};
+
 	/** Error messages. */
 	private interface ErrorMsg
 	{
@@ -67,8 +95,8 @@ public class LocationFilter
 //  Instance variables
 ////////////////////////////////////////////////////////////////////////
 
-	/** Flag: if {@code true}, this is an inclusive filter; otherwise, it is an exclusive filter. */
-	private	boolean		inclusive;
+	/** The kind of filter. */
+	private	Kind		kind;
 
 	/** The kind of pattern. */
 	private	PatternKind	patternKind;
@@ -84,14 +112,14 @@ public class LocationFilter
 ////////////////////////////////////////////////////////////////////////
 
 	/**
-	 * Creates a new instance of a location filter with the specified pattern.
+	 * Creates a new instance of the specified kind of location filter with the specified pattern.
 	 * <p>
 	 * The filter's matcher must be initialised by calling {@link #updateMatcher(FileSystem)} before the {@link
 	 * #matches(Path)} method is called.
 	 * </p>
 	 *
-	 * @param inclusive
-	 *          if {@code true}, the filter will be inclusive; otherwise, it will be exclusive.
+	 * @param kind
+	 *          the kind of location filter.
 	 * @param patternKind
 	 *          the kind of pattern.
 	 * @param pattern
@@ -99,18 +127,20 @@ public class LocationFilter
 	 */
 
 	public LocationFilter(
-		boolean		inclusive,
+		Kind		kind,
 		PatternKind	patternKind,
 		String		pattern)
 	{
 		// Validate arguments
+		if (kind == null)
+			throw new IllegalArgumentException("Null filter kind");
 		if (patternKind == null)
 			throw new IllegalArgumentException("Null pattern kind");
 		if (pattern == null)
 			throw new IllegalArgumentException("Null pattern");
 
 		// Initialise instance variables
-		this.inclusive = inclusive;
+		this.kind = kind;
 		this.patternKind = patternKind;
 		this.pattern = pattern;
 	}
@@ -118,10 +148,11 @@ public class LocationFilter
 	//------------------------------------------------------------------
 
 	/**
-	 * Creates a new instance of a location filter with the specified pattern, for use with the specified file system.
+	 * Creates a new instance of the specified kind of location filter with the specified pattern, for use with the
+	 * specified file system.
 	 *
-	 * @param  inclusive
-	 *          if {@code true}, the filter will be inclusive; otherwise, it will be exclusive.
+	 * @param  kind
+	 *           the kind of location filter.
 	 * @param  patternKind
 	 *           the kind of pattern.
 	 * @param  pattern
@@ -133,14 +164,14 @@ public class LocationFilter
 	 */
 
 	public LocationFilter(
-		boolean		inclusive,
+		Kind		kind,
 		PatternKind	patternKind,
 		String		pattern,
 		FileSystem	fileSystem)
 		throws BaseException
 	{
 		// Call alternative constructor
-		this(inclusive, patternKind, pattern);
+		this(kind, patternKind, pattern);
 
 		// Initialise matcher
 		updateMatcher((fileSystem == null) ? FileSystems.getDefault() : fileSystem);
@@ -156,7 +187,7 @@ public class LocationFilter
 	private LocationFilter()
 	{
 		// Initialise instance variables
-		inclusive = true;
+		kind = Kind.INCLUDE;
 	}
 
 	//------------------------------------------------------------------
@@ -164,6 +195,54 @@ public class LocationFilter
 ////////////////////////////////////////////////////////////////////////
 //  Class methods
 ////////////////////////////////////////////////////////////////////////
+
+	/**
+	 * Creates and returns a new instance of an <i>include</i> filter with the specified pattern, for use with the
+	 * default file system.
+	 *
+	 * @param  patternKind
+	 *           the kind of pattern.
+	 * @param  pattern
+	 *           the pattern, whose syntax depends on {@code patternKind}.
+	 * @return a new instance of an <i>include</i> filter with the specified pattern, for use with the default file
+	 *         system.
+	 * @throws BaseException
+	 *           if {@code patternKind} is not supported by the file system, or if {@code pattern} is invalid.
+	 */
+
+	public static LocationFilter include(
+		PatternKind	patternKind,
+		String		pattern)
+		throws BaseException
+	{
+		return new LocationFilter(Kind.INCLUDE, patternKind, pattern, null);
+	}
+
+	//------------------------------------------------------------------
+
+	/**
+	 * Creates and returns a new instance of an <i>exclude</i> filter with the specified pattern, for use with the
+	 * default file system.
+	 *
+	 * @param  patternKind
+	 *           the kind of pattern.
+	 * @param  pattern
+	 *           the pattern, whose syntax depends on {@code patternKind}.
+	 * @return a new instance of an <i>exclude</i> filter with the specified pattern, for use with the default file
+	 *         system.
+	 * @throws BaseException
+	 *           if {@code patternKind} is not supported by the file system, or if {@code pattern} is invalid.
+	 */
+
+	public static LocationFilter exclude(
+		PatternKind	patternKind,
+		String		pattern)
+		throws BaseException
+	{
+		return new LocationFilter(Kind.EXCLUDE, patternKind, pattern, null);
+	}
+
+	//------------------------------------------------------------------
 
 	/**
 	 * Returns {@code true} if the specified file-system location is accepted by the specified filters.  The location is
@@ -227,7 +306,7 @@ public class LocationFilter
 		Path				location,
 		LocationFilter...	filters)
 	{
-		return accept(location, Arrays.asList(filters));
+		return accept(location, List.of(filters));
 	}
 
 	//------------------------------------------------------------------
@@ -247,8 +326,8 @@ public class LocationFilter
 		if (this == obj)
 			return true;
 
-		return (obj instanceof LocationFilter other) && (inclusive == other.inclusive)
-				&& (patternKind == other.patternKind) && Objects.equals(pattern, other.pattern);
+		return (obj instanceof LocationFilter other) && (kind == other.kind) && (patternKind == other.patternKind)
+				&& Objects.equals(pattern, other.pattern);
 	}
 
 	//------------------------------------------------------------------
@@ -260,9 +339,9 @@ public class LocationFilter
 	@Override
 	public int hashCode()
 	{
-		int code = Boolean.hashCode(inclusive);
-		code = code * 31 + Objects.hashCode(patternKind);
-		code = code * 31 + Objects.hashCode(pattern);
+		int code = Objects.hashCode(kind);
+		code = 31 * code + Objects.hashCode(patternKind);
+		code = 31 * code + Objects.hashCode(pattern);
 		return code;
 	}
 
@@ -273,6 +352,19 @@ public class LocationFilter
 ////////////////////////////////////////////////////////////////////////
 
 	/**
+	 * Returns the kind of this filter.
+	 *
+	 * @return the kind of this filter.
+	 */
+
+	public Kind getKind()
+	{
+		return kind;
+	}
+
+	//------------------------------------------------------------------
+
+	/**
 	 * Returns {@code true} if this is an inclusive filter, {@code false} if this is an exclusive filter.
 	 *
 	 * @return {@code true} if this is an inclusive filter, {@code false} if this is an exclusive filter.
@@ -280,7 +372,7 @@ public class LocationFilter
 
 	public boolean isInclusive()
 	{
-		return inclusive;
+		return (kind == Kind.INCLUDE);
 	}
 
 	//------------------------------------------------------------------
@@ -336,8 +428,19 @@ public class LocationFilter
 	public boolean matches(
 		Path	location)
 	{
-		return (patternKind == null)
-				|| ((matcher != null) && matcher.matches(patternKind.isFilename() ? location.getFileName() : location));
+		if (patternKind == null)
+			return true;
+
+		if (matcher != null)
+		{
+			if (patternKind.isFilename())
+			{
+				Path filename = location.getFileName();
+				return matcher.matches((filename == null) ? Path.of("") : filename);
+			}
+			return matcher.matches(location);
+		}
+		return false;
 	}
 
 	//------------------------------------------------------------------
@@ -379,6 +482,115 @@ public class LocationFilter
 	}
 
 	//------------------------------------------------------------------
+
+
+	// ENUMERATION: KINDS OF FILTER
+
+
+	/**
+	 * This is an enumeration of the available kinds of {@linkplain LocationFilter location filter}.
+	 */
+
+	public enum Kind
+	{
+
+	////////////////////////////////////////////////////////////////////
+	//  Constants
+	////////////////////////////////////////////////////////////////////
+
+		/**
+		 * An inclusive filter.
+		 */
+		INCLUDE,
+
+		/**
+		 * An exclusive filter.
+		 */
+		EXCLUDE;
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance variables
+	////////////////////////////////////////////////////////////////////
+
+		/** The key that is associated with this kind of location filter. */
+		private	String	key;
+
+	////////////////////////////////////////////////////////////////////
+	//  Constructors
+	////////////////////////////////////////////////////////////////////
+
+		/**
+		 * Creates a new instance of a kind of location filter.
+		 */
+
+		private Kind()
+		{
+			// Initialise instance variables
+			key = name().toLowerCase();
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Class methods
+	////////////////////////////////////////////////////////////////////
+
+		/**
+		 * Returns the kind of location filter that is associated with the specified key.
+		 *
+		 * @param  key
+		 *           the key whose associated kind of location filter is desired.
+		 * @return the kind of location filter that is associated with {@code key}, or {@code null} if there is no such
+		 *         kind of filter.
+		 */
+
+		public static Kind forKey(
+			String	key)
+		{
+			return Stream.of(values())
+					.filter(value -> value.key.equals(key))
+					.findFirst()
+					.orElse(null);
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance methods : overriding methods
+	////////////////////////////////////////////////////////////////////
+
+		/**
+		 * {@inheritDoc}
+		 */
+
+		@Override
+		public String toString()
+		{
+			return StringUtils.firstCharToUpperCase(key);
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance methods
+	////////////////////////////////////////////////////////////////////
+
+		/**
+		 * Returns the key that is associated with this kind of location filter.
+		 *
+		 * @return the key that is associated with this kind of location filter.
+		 */
+
+		public String key()
+		{
+			return key;
+		}
+
+		//--------------------------------------------------------------
+
+	}
+
+	//==================================================================
 
 }
 

@@ -24,13 +24,21 @@ import java.nio.file.Path;
 
 import java.text.DecimalFormat;
 
+import javafx.geometry.HPos;
+
 import javafx.stage.Window;
 
 import uk.blankaspect.common.basictree.MapNode;
 
+import uk.blankaspect.common.filesystem.PathUtils;
+
 import uk.blankaspect.common.logging.Logger;
 
+import uk.blankaspect.ui.jfx.dialog.ButtonInfo;
 import uk.blankaspect.ui.jfx.dialog.ErrorDialog;
+import uk.blankaspect.ui.jfx.dialog.MessageDialog;
+
+import uk.blankaspect.ui.jfx.image.MessageIcon32;
 
 //----------------------------------------------------------------------
 
@@ -47,6 +55,12 @@ public class Utils
 
 	/** The formatter that is applied to integer values to group digits in threes. */
 	public static final	DecimalFormat	INTEGER_FORMATTER;
+
+	/** Miscellaneous strings. */
+	private static final	String	SAVE_BEYOND_SESSION_STR	= "Do you want to save the %s beyond the current session?";
+	private static final	String	SAVE_STR				= "Save";
+	private static final	String	DONT_SAVE_STR			= "Don't save";
+	private static final	String	CANCEL_STR				= "Cancel";
 
 ////////////////////////////////////////////////////////////////////////
 //  Static initialiser
@@ -153,7 +167,7 @@ public class Utils
 		Path	location)
 	{
 		if (location != null)
-			node.addString(key, normalisePathname(location.toAbsolutePath().toString()));
+			node.addString(key, normalisePathname(PathUtils.absString(location)));
 	}
 
 	//------------------------------------------------------------------
@@ -163,6 +177,23 @@ public class Utils
 		String	key)
 	{
 		return Path.of(denormalisePathname(node.getString(key)));
+	}
+
+	//------------------------------------------------------------------
+
+	public static Boolean askSaveBeyondSession(
+		Window	owner,
+		String	title,
+		String	itemStr)
+	{
+		return switch (MessageDialog.show(owner, title, MessageIcon32.QUESTION.get(),
+										  String.format(SAVE_BEYOND_SESSION_STR, itemStr),
+										  ButtonInfo.of(HPos.RIGHT, SAVE_STR, DONT_SAVE_STR, CANCEL_STR)))
+		{
+			case 0  -> Boolean.TRUE;
+			case 1  -> Boolean.FALSE;
+			default -> null;
+		};
 	}
 
 	//------------------------------------------------------------------

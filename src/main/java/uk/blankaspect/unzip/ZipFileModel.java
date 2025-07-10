@@ -54,6 +54,7 @@ import uk.blankaspect.common.bytechannel.ChannelUtils;
 import uk.blankaspect.common.exception2.FileException;
 
 import uk.blankaspect.common.filesystem.FilenameUtils;
+import uk.blankaspect.common.filesystem.PathUtils;
 
 import uk.blankaspect.common.logging.Logger;
 
@@ -79,7 +80,7 @@ public class ZipFileModel
 	private static final	byte[]	ENTRY_ID	= { 'P', 'K', (byte)0x03, (byte)0x04 };
 	private static final	byte[]	EOCD_ID		= { 'P', 'K', (byte)0x05, (byte)0x06 };
 
-	private static final	int		EXTRACTION_BUFFER_SIZE	= 1 << 16;  // 65536
+	private static final	int		EXTRACTION_BUFFER_LENGTH	= 1 << 16;  // 65536
 
 	/** Miscellaneous strings. */
 	private static final	String	FILENAME_STR				= "Filename";
@@ -96,24 +97,56 @@ public class ZipFileModel
 	/** Error messages. */
 	private interface ErrorMsg
 	{
-		String	FAILED_TO_OPEN_FILE				= "Failed to open the file.";
-		String	FAILED_TO_CLOSE_FILE			= "Failed to close the file.";
-		String	FAILED_TO_LOCK_FILE				= "Failed to lock the file.";
-		String	FILE_ACCESS_NOT_PERMITTED		= "Access to the file was not permitted.";
-		String	FAILED_TO_READ_FILE_ATTRIBUTES	= "Failed to read the attributes of the file.";
-		String	ERROR_READING_FILE				= "An error occurred when reading the file.";
-		String	ERROR_WRITING_FILE				= "An error occurred when writing the file.";
-		String	PREMATURE_END_OF_FILE			= "The end of the file was reached prematurely when reading the file.";
-		String	ZIP_FILE_CHANGED				= "The zip file has changed since it was first read.";
-		String	FAILED_TO_CREATE_DIRECTORY		= "Failed to create the directory.";
-		String	FAILED_TO_CREATE_TEMPORARY_FILE	= "Failed to create a temporary file.";
-		String	FAILED_TO_DELETE_FILE			= "Failed to delete the existing file.";
-		String	FAILED_TO_RENAME_FILE			= "Temporary file: %s\n"
-													+ "Failed to rename the temporary file to the specified filename.";
-		String	NOT_A_ZIP_FILE					= "The file is not recognised as a zip file.";
-		String	FAILED_TO_READ_ZIP_ENTRY		= "Failed to read an entry of the input file.";
-		String	FAILED_TO_SET_TIMESTAMP			= "Failed to set the timestamp of the output file.";
-		String	INCORRECT_CRC					= "The CRC value of the file is incorrect.";
+		String	FAILED_TO_OPEN_FILE =
+				"Failed to open the file.";
+
+		String	FAILED_TO_CLOSE_FILE =
+				"Failed to close the file.";
+
+		String	FAILED_TO_LOCK_FILE =
+				"Failed to lock the file.";
+
+		String	FILE_ACCESS_NOT_PERMITTED =
+				"Access to the file was not permitted.";
+
+		String	FAILED_TO_READ_FILE_ATTRIBUTES =
+				"Failed to read the attributes of the file.";
+
+		String	ERROR_READING_FILE =
+				"An error occurred when reading the file.";
+
+		String	ERROR_WRITING_FILE =
+				"An error occurred when writing the file.";
+
+		String	PREMATURE_END_OF_FILE =
+				"The end of the file was reached prematurely when reading the file.";
+
+		String	ZIP_FILE_CHANGED =
+				"The zip file has changed since it was first read.";
+
+		String	FAILED_TO_CREATE_DIRECTORY =
+				"Failed to create the directory.";
+
+		String	FAILED_TO_CREATE_TEMPORARY_FILE =
+				"Failed to create a temporary file.";
+
+		String	FAILED_TO_DELETE_FILE =
+				"Failed to delete the existing file.";
+
+		String	FAILED_TO_RENAME_FILE =
+				"Temporary file: %s\nFailed to rename the temporary file to the specified filename.";
+
+		String	NOT_A_ZIP_FILE =
+				"The file is not recognised as a zip file.";
+
+		String	FAILED_TO_READ_ZIP_ENTRY =
+				"Failed to read an entry of the input file.";
+
+		String	FAILED_TO_SET_FILE_TIMESTAMP =
+				"Failed to set the timestamp of the output file.";
+
+		String	INCORRECT_CRC =
+				"The CRC value of the file is incorrect.";
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -209,7 +242,7 @@ public class ZipFileModel
 		try
 		{
 			// Set message and indeterminate progress
-			taskStatus.setMessage(READING_STR + ITaskStatus.SPACE_MESSAGE_SEPARATOR + location.toAbsolutePath());
+			taskStatus.setSpacedMessage(READING_STR, PathUtils.abs(location));
 			taskStatus.setProgress(-1.0);
 
 			// Open file channel for reading
@@ -329,7 +362,7 @@ public class ZipFileModel
 			}
 
 			// Update message; set indeterminate progress
-			taskStatus.setMessage(SORTING_STR + ITaskStatus.SPACE_MESSAGE_SEPARATOR + location.toAbsolutePath());
+			taskStatus.setSpacedMessage(SORTING_STR, PathUtils.abs(location));
 			taskStatus.setProgress(-1.0);
 
 			// Sort entries
@@ -462,7 +495,7 @@ public class ZipFileModel
 				Path outFile = entry.getOutputFile(outDirectory, flatten);
 
 				// Update message
-				taskStatus.setMessage(WRITING_STR + ITaskStatus.SPACE_MESSAGE_SEPARATOR + outFile.toAbsolutePath());
+				taskStatus.setSpacedMessage(WRITING_STR, PathUtils.abs(outFile));
 
 				// Write entry to file
 				extractEntry(zipFile, zipEntries.get(index), outFile);
@@ -529,7 +562,7 @@ public class ZipFileModel
 			Path outFile = entry.getOutputFile(outDirectory, true);
 
 			// Set message and indeterminate progress
-			taskStatus.setMessage(EXTRACTING_FILE_STR + ITaskStatus.SPACE_MESSAGE_SEPARATOR + outFile.toAbsolutePath());
+			taskStatus.setSpacedMessage(EXTRACTING_FILE_STR, PathUtils.abs(outFile));
 			taskStatus.setProgress(-1.0);
 
 			// Open zip file
@@ -553,7 +586,7 @@ public class ZipFileModel
 				throw new FileException(ErrorMsg.ZIP_FILE_CHANGED, location);
 
 			// Update message
-			taskStatus.setMessage(WRITING_STR + ITaskStatus.SPACE_MESSAGE_SEPARATOR + outFile.toAbsolutePath());
+			taskStatus.setSpacedMessage(WRITING_STR, PathUtils.abs(outFile));
 
 			// Write entry to file
 			extractEntry(zipFile, zipEntries.get(index), outFile);
@@ -616,7 +649,7 @@ public class ZipFileModel
 			}
 			catch (Exception e)
 			{
-				throw new FileException(ErrorMsg.FAILED_TO_READ_ZIP_ENTRY, outFile, e);
+				throw new FileException(ErrorMsg.FAILED_TO_READ_ZIP_ENTRY, location, e);
 			}
 
 			// Read file permissions of an existing file
@@ -640,7 +673,7 @@ public class ZipFileModel
 			}
 
 			// Create parent directory
-			Path directory = outFile.toAbsolutePath().getParent();
+			Path directory = PathUtils.absParent(outFile);
 			try
 			{
 				Files.createDirectories(directory);
@@ -684,7 +717,7 @@ public class ZipFileModel
 
 			// Allocate buffer
 			if (extractionBuffer == null)
-				extractionBuffer = new byte[EXTRACTION_BUFFER_SIZE];
+				extractionBuffer = new byte[EXTRACTION_BUFFER_LENGTH];
 
 			// Read from zip entry and write output file
 			CRC32 crc = new CRC32();
@@ -730,7 +763,7 @@ public class ZipFileModel
 			}
 			catch (Exception e)
 			{
-				throw new FileException(ErrorMsg.FAILED_TO_CLOSE_FILE, location);
+				throw new FileException(ErrorMsg.FAILED_TO_CLOSE_FILE, e, location);
 			}
 			finally
 			{
@@ -769,8 +802,7 @@ public class ZipFileModel
 			}
 			catch (Exception e)
 			{
-				String pathname = tempFile.toAbsolutePath().toString();
-				throw new FileException(ErrorMsg.FAILED_TO_RENAME_FILE, e, outFile, pathname);
+				throw new FileException(ErrorMsg.FAILED_TO_RENAME_FILE, e, outFile, PathUtils.abs(tempFile));
 			}
 
 			// Set timestamp of output file
@@ -782,7 +814,7 @@ public class ZipFileModel
 			}
 			catch (Exception e)
 			{
-				throw new FileException(ErrorMsg.FAILED_TO_SET_TIMESTAMP, e, outFile);
+				throw new FileException(ErrorMsg.FAILED_TO_SET_FILE_TIMESTAMP, e, outFile);
 			}
 
 			// Check CRC

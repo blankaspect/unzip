@@ -58,7 +58,6 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 
 import javafx.scene.control.Button;
-import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
@@ -91,6 +90,7 @@ import uk.blankaspect.common.exception2.LocationException;
 
 import uk.blankaspect.common.filesystem.FileSystemUtils;
 import uk.blankaspect.common.filesystem.PathnameUtils;
+import uk.blankaspect.common.filesystem.PathUtils;
 
 import uk.blankaspect.common.function.IProcedure0;
 
@@ -98,12 +98,19 @@ import uk.blankaspect.common.logging.Logger;
 import uk.blankaspect.common.logging.LoggerUtils;
 import uk.blankaspect.common.logging.LogLevel;
 
+import uk.blankaspect.common.misc.SystemUtils;
+
+import uk.blankaspect.common.os.OsUtils;
+
 import uk.blankaspect.common.resource.ResourceProperties;
 import uk.blankaspect.common.resource.ResourceUtils;
 
 import uk.blankaspect.common.string.StringUtils;
 
 import uk.blankaspect.common.thread.DaemonFactory;
+
+import uk.blankaspect.ui.jfx.button.Buttons;
+import uk.blankaspect.ui.jfx.button.ImageDataButton;
 
 import uk.blankaspect.ui.jfx.clipboard.ClipboardUtils;
 
@@ -115,7 +122,12 @@ import uk.blankaspect.ui.jfx.dialog.NotificationDialog;
 import uk.blankaspect.ui.jfx.dialog.SimpleModalDialog;
 import uk.blankaspect.ui.jfx.dialog.SimpleProgressDialog;
 
+import uk.blankaspect.ui.jfx.exec.ExecUtils;
+
+import uk.blankaspect.ui.jfx.image.ImageData;
 import uk.blankaspect.ui.jfx.image.MessageIcon32;
+
+import uk.blankaspect.ui.jfx.label.Labels;
 
 import uk.blankaspect.ui.jfx.locationchooser.FileMatcher;
 import uk.blankaspect.ui.jfx.locationchooser.LocationChooser;
@@ -150,9 +162,10 @@ public class UnzipApp
 	/** The long name of the application. */
 	private static final	String	LONG_NAME	= "Zip-file extractor";
 
-	/** The key with which the application is associated. */
-	private static final	String	NAME_KEY	= "unzip";
+	/** The name of the application when used as a key. */
+	private static final	String	NAME_KEY	= StringUtils.firstCharToLowerCase(SHORT_NAME);
 
+	/** The name of the file that contains the build properties of the application. */
 	private static final	String	BUILD_PROPERTIES_FILENAME	= "build.properties";
 
 	/** The name of the log file. */
@@ -177,7 +190,7 @@ public class UnzipApp
 	private static final	String	STYLE_SHEET_FILENAME	= NAME_KEY + "-%02d.css";
 
 	/** The default initial directory of a file chooser. */
-	private static final	Path	DEFAULT_DIRECTORY	= Path.of(System.getProperty("user.home", "."));
+	private static final	Path	DEFAULT_DIRECTORY	= SystemUtils.userHomeDirectory();
 
 	/** The interval (in milliseconds) between successive checks for a modified file. */
 	private static final	int		CHECK_MODIFIED_FILE_INTERVAL	= 500;
@@ -187,9 +200,7 @@ public class UnzipApp
 
 	private static final	String	EDITOR_THREAD_NAME_SUFFIX	= "editor";
 
-	private static final	String	TEMPORARY_DIRECTORY_PROPERTY_KEY	= "java.io.tmpdir";
-
-	private static final	String	EXTRACTION_DIRECTORY_NAME	= "blankaspect." + UnzipApp.NAME_KEY;
+	private static final	String	EXTRACTION_DIRECTORY_NAME	= "blankaspect." + NAME_KEY;
 
 	private static final	String	ZIP_FILE_PROPERTIES_KEY	= "zipFileProperties";
 
@@ -197,6 +208,15 @@ public class UnzipApp
 			new KeyCodeCombination(KeyCode.TAB, KeyCombination.CONTROL_DOWN);
 
 	private static final	double	TABLE_VIEW_HEIGHT	= 506.0;
+
+	/** The delay (in milliseconds) in a <i>WINDOW_SHOWN</i> event handler on platforms other than Windows. */
+	private static final	int		WINDOW_SHOWN_DELAY	= 150;
+
+	/** The delay (in milliseconds) in a <i>WINDOW_SHOWN</i> event handler on Windows. */
+	private static final	int		WINDOW_SHOWN_DELAY_WINDOWS	= 50;
+
+	/** The delay (in milliseconds) before making the main window visible by restoring its opacity. */
+	private static final	int		WINDOW_VISIBLE_DELAY	= 50;
 
 	/** The margins that are applied to the visual bounds of each screen when determining whether the saved location of
 		the main window is within a screen. */
@@ -254,20 +274,37 @@ public class UnzipApp
 	/** Keys of system properties. */
 	private interface SystemPropertyKey
 	{
+		String	TEMP_DIR				= "java.io.tmpdir";
 		String	USE_STYLE_SHEET_FILE	= "useStyleSheetFile";
+		String	WINDOW_SHOWN_DELAY		= "windowShownDelay";
 	}
 
 	/** Error messages. */
 	private interface ErrorMsg
 	{
-		String	FILE_DOES_NOT_EXIST						= "The file does not exist.";
-		String	NOT_A_FILE								= "The location does not denote a regular file.";
-		String	NO_AUXILIARY_DIRECTORY					= "The location of the auxiliary directory could not be determined.";
-		String	NO_FILE_EDITORS							= "No file editors have been specified.";
-		String	FAILED_TO_LOCATE_TEMPORARY_DIRECTORY	= "Failed to get the location of the system's temporary directory.";
-		String	FAILED_TO_CREATE_DIRECTORY				= "Failed to create the directory.";
-		String	MALFORMED_EDITOR_COMMAND				= "The editor command is malformed.";
-		String	FAILED_TO_EXECUTE_EDITOR_COMMAND		= "Failed to execute the editor command.";
+		String	FILE_DOES_NOT_EXIST =
+				"The file does not exist.";
+
+		String	NOT_A_FILE =
+				"The location does not denote a regular file.";
+
+		String	NO_AUXILIARY_DIRECTORY =
+				"The location of the auxiliary directory could not be determined.";
+
+		String	NO_FILE_EDITORS =
+				"No file editors have been specified.";
+
+		String	FAILED_TO_LOCATE_TEMPORARY_DIRECTORY =
+				"Failed to get the location of the system's temporary directory.";
+
+		String	FAILED_TO_CREATE_DIRECTORY =
+				"Failed to create the directory.";
+
+		String	MALFORMED_EDITOR_COMMAND =
+				"The editor command is malformed.";
+
+		String	FAILED_TO_EXECUTE_EDITOR_COMMAND =
+				"Failed to execute the editor command.";
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -284,13 +321,28 @@ public class UnzipApp
 //  Instance variables
 ////////////////////////////////////////////////////////////////////////
 
+	/** The properties of the build of this application. */
 	private	ResourceProperties					buildProperties;
+
+	/** The string representation of the version of this application. */
 	private	String								versionStr;
-	private	Configuration						configuration;
+
+	/** User preferences. */
 	private	Preferences							preferences;
+
+	/** The current zip file. */
 	private	SimpleObjectProperty<ZipFileModel>	zipFile;
+
+	/** The state of the main window. */
 	private	WindowState							mainWindowState;
+
+	/** Flag: if {@code true}, the current zip file may be reloaded in response to an external modification. */
+	private	boolean								reloadPending;
+
+	/** The widths of the columns of the table view of the main window, read on start-up. */
 	private	Map<String, Double>					tableViewColumnWidths;
+
+	/** A list of the locations of temporary files and directories that will be deleted on exit. */
 	private	List<Path>							locationsForDeletion;
 
 	/** The directory that is associated with {@link #openFileChooser}. */
@@ -315,8 +367,8 @@ public class UnzipApp
 	static
 	{
 		// Initialise logger and open log file
-		LoggerUtils.openLogger(LOG_THRESHOLD, LOG_PARAMS, AppAuxDirectory.resolve(NAME_KEY, UnzipApp.class, LOG_FILENAME),
-							   LOG_NUM_RETAINED_LINES);
+		LoggerUtils.openLogger(LOG_THRESHOLD, LOG_PARAMS,
+							   AppAuxDirectory.resolve(NAME_KEY, UnzipApp.class, LOG_FILENAME), LOG_NUM_RETAINED_LINES);
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -359,6 +411,32 @@ public class UnzipApp
 
 	//------------------------------------------------------------------
 
+	/**
+	 * Returns the delay (in milliseconds) in a <i>WINDOW_SHOWN</i> event handler.
+	 *
+	 * @return the delay (in milliseconds) in a <i>WINDOW_SHOWN</i> event handler.
+	 */
+
+	private static int getWindowShownDelay()
+	{
+		int delay = OsUtils.isWindows() ? WINDOW_SHOWN_DELAY_WINDOWS : WINDOW_SHOWN_DELAY;
+		String value = System.getProperty(SystemPropertyKey.WINDOW_SHOWN_DELAY);
+		if (value != null)
+		{
+			try
+			{
+				delay = Integer.parseInt(value);
+			}
+			catch (NumberFormatException e)
+			{
+				e.printStackTrace();
+			}
+		}
+		return delay;
+	}
+
+	//------------------------------------------------------------------
+
 ////////////////////////////////////////////////////////////////////////
 //  Instance methods : overriding methods
 ////////////////////////////////////////////////////////////////////////
@@ -375,6 +453,9 @@ public class UnzipApp
 	public void start(
 		Stage	primaryStage)
 	{
+		// Make main window invisible until it is shown
+		primaryStage.setOpacity(0.0);
+
 		// Log stack trace of uncaught exception
 		if (ClassUtils.isFromJar(getClass()))
 		{
@@ -434,7 +515,8 @@ public class UnzipApp
 		// Read build properties and initialise version string
 		try
 		{
-			buildProperties = new ResourceProperties(ResourceUtils.normalisedPathname(getClass(), BUILD_PROPERTIES_FILENAME));
+			buildProperties =
+					new ResourceProperties(ResourceUtils.normalisedPathname(getClass(), BUILD_PROPERTIES_FILENAME));
 			versionStr = BuildUtils.versionString(getClass(), buildProperties);
 		}
 		catch (LocationException e)
@@ -442,33 +524,42 @@ public class UnzipApp
 			e.printStackTrace();
 		}
 
+		// Create container for local variables
+		class Vars
+		{
+			Configuration	config;
+			BaseException	configException;
+		}
+		Vars vars = new Vars();
+
 		// Read configuration file and decode configuration
-		BaseException configException = null;
 		try
 		{
 			// Initialise configuration
-			configuration = new Configuration();
+			vars.config = new Configuration();
 
-			// Read configuration file
-			configuration.read();
+			// Read and decode configuration
+			if (!AppConfig.noConfigFile())
+			{
+				// Read configuration file
+				vars.config.read();
 
-			// Decode configuration
-			decodeConfig(configuration.getConfig());
+				// Decode configuration
+				decodeConfig(vars.config.getConfig());
+			}
 		}
 		catch (BaseException e)
 		{
-			configException = e;
+			vars.configException = e;
 		}
 
 		// Get style manager
 		StyleManager styleManager = StyleManager.INSTANCE;
 
-		// Select theme
+		// Select theme from system property
 		String themeId = System.getProperty(StyleManager.SystemPropertyKey.THEME);
-		if (StringUtils.isNullOrEmpty(themeId))
-			themeId = preferences.getThemeId();
-		if (themeId != null)
-			styleManager.selectTheme(themeId);
+		if (!StringUtils.isNullOrEmpty(themeId))
+			styleManager.selectThemeOrDefault(themeId);
 
 		// Set ID and style-sheet filename on style manager
 		if (Boolean.getBoolean(SystemPropertyKey.USE_STYLE_SHEET_FILE))
@@ -479,9 +570,8 @@ public class UnzipApp
 
 		// Create table view
 		tableView = new ZipFileTableView();
-		tableView.setDisable(true);
 		tableView.setPrefHeight(TABLE_VIEW_HEIGHT);
-		if (configuration != null)
+		if (vars.config != null)
 			tableView.setColumnWidths(tableViewColumnWidths);
 		VBox.setVgrow(tableView, Priority.ALWAYS);
 
@@ -516,9 +606,6 @@ public class UnzipApp
 				filterDialog.get().requestFocus();
 		});
 
-		// Add style sheet to scene
-		styleManager.addStyleSheet(scene);
-
 		// Set drag-and-drop handler to accept a zip file
 		scene.setOnDragOver(event ->
 		{
@@ -548,60 +635,80 @@ public class UnzipApp
 			event.consume();
 		});
 
+		// Add style sheet to scene
+		styleManager.addStyleSheet(scene);
+
+		// Update images of image buttons when theme changes
+		StyleManager.INSTANCE.themeProperty().addListener(observable ->
+		{
+			ImageData.updateImages();
+			ImageDataButton.updateButtons();
+		});
+
 		// Set properties of main window
 		primaryStage.getIcons().addAll(Images.APP_ICON_IMAGES);
 
 		// Set scene on main window
 		primaryStage.setScene(scene);
+		primaryStage.sizeToScene();
 
-		// Set location and size of main window when it is opening
-		primaryStage.setOnShowing(event ->
-		{
-			// Set location of window
-			Point2D location = mainWindowState.getLocation();
-			if (location != null)
-			{
-				primaryStage.setX(location.getX());
-				primaryStage.setY(location.getY());
-			}
-
-			// Set size of window
-			Dimension2D size = mainWindowState.getSize();
-			if (size == null)
-				primaryStage.sizeToScene();
-			else
-			{
-				primaryStage.setWidth(size.getWidth());
-				primaryStage.setHeight(size.getHeight());
-			}
-		});
-
-		// Set location of main window after it is shown
+		// When main window is shown, set its size and location after a delay
 		primaryStage.setOnShown(event ->
 		{
-			// Get location of window
-			Point2D location = mainWindowState.getLocation();
-
-			// Invalidate location if top centre of window is not within a screen
-			double width = primaryStage.getWidth();
-			if ((location != null)
-					&& !SceneUtils.isWithinScreen(location.getX() + 0.5 * width, location.getY(), SCREEN_MARGINS))
-				location = null;
-
-			// If there is no location, centre window within primary screen
-			if (location == null)
+			// Set size and location of main window after a delay
+			ExecUtils.afterDelay(getWindowShownDelay(), () ->
 			{
-				location = SceneUtils.centreInScreen(width, primaryStage.getHeight());
+				// Get size of window from saved state
+				Dimension2D size = mainWindowState.getSize();
+
+				// Set size of window
+				if (size != null)
+				{
+					primaryStage.setWidth(size.getWidth());
+					primaryStage.setHeight(size.getHeight());
+				}
+
+				// Get location of window from saved state
+				Point2D location = mainWindowState.getLocation();
+
+				// Invalidate location if top centre of window is not within a screen
+				double width = primaryStage.getWidth();
+				if ((location != null)
+						&& !SceneUtils.isWithinScreen(location.getX() + 0.5 * width, location.getY(), SCREEN_MARGINS))
+					location = null;
+
+				// If there is no location, centre window within primary screen
+				if (location == null)
+					location = SceneUtils.centreInScreen(width, primaryStage.getHeight());
+
+				// Set location of window
 				primaryStage.setX(location.getX());
 				primaryStage.setY(location.getY());
-			}
+
+				// Perform remaining initialisation after a delay
+				ExecUtils.afterDelay(WINDOW_VISIBLE_DELAY, () ->
+				{
+					// Make window visible
+					primaryStage.setOpacity(1.0);
+
+					// Report any configuration error
+					if (vars.configException != null)
+					{
+						Utils.showErrorMessage(primaryStage, SHORT_NAME + " : " + CONFIG_ERROR_STR,
+											   vars.configException);
+					}
+
+					// Perform remaining initialisation
+					initialise();
+				});
+			});
 		});
 
 		// Update title
 		updateTitle();
 
 		// Write configuration file when main window is closed
-		if (configuration != null)
+		if (vars.config != null)
 		{
 			primaryStage.setOnHiding(event ->
 			{
@@ -609,12 +716,12 @@ public class UnzipApp
 				mainWindowState.restoreAndUpdate(primaryStage);
 
 				// Write configuration
-				if (configuration.canWrite())
+				if (vars.config.canWrite())
 				{
 					try
 					{
-						encodeConfig(configuration.getConfig());
-						configuration.write();
+						encodeConfig(vars.config.getConfig());
+						vars.config.write();
 					}
 					catch (FileException e)
 					{
@@ -627,69 +734,6 @@ public class UnzipApp
 
 		// Display main window
 		primaryStage.show();
-
-		// Report any configuration error
-		if (configException != null)
-			Utils.showErrorMessage(primaryStage, SHORT_NAME + " : " + CONFIG_ERROR_STR, configException);
-
-		// Add shutdown hook to delete temporary locations that weren't deleted in the stop() method
-		Runtime.getRuntime().addShutdownHook(new Thread(() ->
-		{
-			for (int i = locationsForDeletion.size() - 1; i >= 0; i--)
-			{
-				try
-				{
-					FileSystemUtils.deleteWithRetries(locationsForDeletion.get(i), 3);
-				}
-				catch (Throwable e)
-				{
-					e.printStackTrace();
-				}
-			}
-		}));
-
-		// Open file that was specified on command line
-		if (!args.isEmpty())
-			openFile(Path.of(PathnameUtils.parsePathname(args.get(0))));
-
-		// Start checking for modified file
-		ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(runnable ->
-				DaemonFactory.create(NAME_KEY + "-" + CHECK_MODIFIED_FILE_THREAD_NAME_SUFFIX, runnable));
-		executor.scheduleWithFixedDelay(() ->
-		{
-			ZipFileModel zipFile = getZipFile();
-			if (zipFile == null)
-				return;
-
-			Path file = zipFile.getLocation();
-			FileTime oldTimestamp = zipFile.getTimestamp();
-			try
-			{
-				FileTime timestamp = Files.getLastModifiedTime(file, LinkOption.NOFOLLOW_LINKS);
-				if (!timestamp.equals(oldTimestamp))
-				{
-					zipFile.setTimestamp(timestamp);
-
-					if (oldTimestamp == null)
-						return;
-
-					Platform.runLater(() ->
-					{
-						if (ConfirmationDialog.show(primaryStage, MODIFIED_FILE_STR, MessageIcon32.QUESTION.get(),
-													String.format(MODIFIED_MESSAGE_STR, file.getFileName()),
-													RELOAD_STR))
-						{
-							openFile(file);
-						}
-					});
-				}
-			}
-			catch (IOException e)
-			{
-				// ignore
-			}
-		},
-		CHECK_MODIFIED_FILE_INTERVAL, CHECK_MODIFIED_FILE_INTERVAL, TimeUnit.MILLISECONDS);
 	}
 
 	//------------------------------------------------------------------
@@ -775,7 +819,7 @@ public class UnzipApp
 			String pathname = preferences.getFileEditorExtractionDirectory();
 			if (pathname == null)
 			{
-				pathname = System.getProperty(TEMPORARY_DIRECTORY_PROPERTY_KEY);
+				pathname = System.getProperty(SystemPropertyKey.TEMP_DIR);
 				if (pathname == null)
 					throw new BaseException(ErrorMsg.FAILED_TO_LOCATE_TEMPORARY_DIRECTORY);
 			}
@@ -878,12 +922,10 @@ public class UnzipApp
 					{
 						try
 						{
-							// Create process and start it
-							ProcessBuilder processBuilder = new ProcessBuilder(arguments);
-							processBuilder.inheritIO();
-							processBuilder.start();
+							// Start process
+							new ProcessBuilder(arguments).inheritIO().start();
 						}
-						catch (IOException e)
+						catch (Exception e)
 						{
 							Platform.runLater(() ->
 									ErrorDialog.show(primaryStage, title, ErrorMsg.FAILED_TO_EXECUTE_EDITOR_COMMAND));
@@ -928,7 +970,9 @@ public class UnzipApp
 		rootNode.clear();
 
 		// Encode theme ID
-		rootNode.addMap(PropertyKey.APPEARANCE).addString(PropertyKey.THEME, preferences.getThemeId());
+		String themeId = StyleManager.INSTANCE.getThemeId();
+		if (themeId != null)
+			rootNode.addMap(PropertyKey.APPEARANCE).addString(PropertyKey.THEME, themeId);
 
 		// Encode state of main window
 		MapNode mainWindowNode = mainWindowState.encodeTree();
@@ -985,7 +1029,10 @@ public class UnzipApp
 		// Decode theme ID
 		String key = PropertyKey.APPEARANCE;
 		if (rootNode.hasMap(key))
-			preferences.setThemeId(rootNode.getMapNode(key).getString(PropertyKey.THEME, StyleManager.DEFAULT_THEME_ID));
+		{
+			String themeId = rootNode.getMapNode(key).getString(PropertyKey.THEME, StyleManager.DEFAULT_THEME_ID);
+			StyleManager.INSTANCE.selectThemeOrDefault(themeId);
+		}
 
 		// Decode properties of main window
 		key = PropertyKey.MAIN_WINDOW;
@@ -1018,8 +1065,9 @@ public class UnzipApp
 					preferences.setCellVerticalPadding(viewNode.getInt(key));
 
 				// Decode column-header pop-up delay
-				preferences.setColumnHeaderPopUpDelay(viewNode.getInt(PropertyKey.COLUMN_HEADER_POP_UP_DELAY,
-																	  ZipFileTableView.DEFAULT_HEADER_CELL_POP_UP_DELAY));
+				preferences.setColumnHeaderPopUpDelay(
+						viewNode.getInt(PropertyKey.COLUMN_HEADER_POP_UP_DELAY,
+										ZipFileTableView.DEFAULT_HEADER_CELL_POP_UP_DELAY));
 			}
 		}
 
@@ -1050,6 +1098,74 @@ public class UnzipApp
 		key = PropertyKey.COMPARISON_DIALOG;
 		if (rootNode.hasMap(key))
 			ComparisonDialog.decodeState(rootNode.getMapNode(key));
+	}
+
+	//------------------------------------------------------------------
+
+	private void initialise()
+	{
+		// Add shutdown hook to delete temporary locations that weren't deleted in the stop() method
+		Runtime.getRuntime().addShutdownHook(new Thread(() ->
+		{
+			for (int i = locationsForDeletion.size() - 1; i >= 0; i--)
+			{
+				try
+				{
+					FileSystemUtils.deleteWithRetries(locationsForDeletion.get(i), 3);
+				}
+				catch (Throwable e)
+				{
+					e.printStackTrace();
+				}
+			}
+		}));
+
+		// Open file that was specified on command line
+		List<String> args = getParameters().getRaw();
+		if (!args.isEmpty())
+			openFile(Path.of(PathnameUtils.parsePathname(args.get(0))));
+
+		// Start checking for modified file
+		ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(runnable ->
+				DaemonFactory.create(NAME_KEY + "-" + CHECK_MODIFIED_FILE_THREAD_NAME_SUFFIX, runnable));
+		executor.scheduleWithFixedDelay(() ->
+		{
+			ZipFileModel zipFile = getZipFile();
+			if (zipFile == null)
+				return;
+
+			Path file = zipFile.getLocation();
+			FileTime oldTimestamp = zipFile.getTimestamp();
+			try
+			{
+				FileTime timestamp = Files.getLastModifiedTime(file, LinkOption.NOFOLLOW_LINKS);
+				if (!timestamp.equals(oldTimestamp))
+				{
+					zipFile.setTimestamp(timestamp);
+
+					if (oldTimestamp == null)
+						return;
+
+					Platform.runLater(() ->
+					{
+						if (!reloadPending)
+						{
+							reloadPending = true;
+							if (ConfirmationDialog.show(primaryStage, MODIFIED_FILE_STR, MessageIcon32.QUESTION.get(),
+														String.format(MODIFIED_MESSAGE_STR, file.getFileName()),
+														RELOAD_STR))
+								openFile(file);
+							reloadPending = false;
+						}
+					});
+				}
+			}
+			catch (IOException e)
+			{
+				// ignore
+			}
+		},
+		CHECK_MODIFIED_FILE_INTERVAL, CHECK_MODIFIED_FILE_INTERVAL, TimeUnit.MILLISECONDS);
 	}
 
 	//------------------------------------------------------------------
@@ -1168,7 +1284,7 @@ public class UnzipApp
 	{
 		ZipFileModel zipFile = getZipFile();
 		primaryStage.setTitle((zipFile == null) ? LONG_NAME + " " + versionStr
-												: LONG_NAME + " - " + zipFile.getLocation().toAbsolutePath());
+												: LONG_NAME + " - " + PathUtils.abs(zipFile.getLocation()));
 	}
 
 	//------------------------------------------------------------------
@@ -1193,7 +1309,7 @@ public class UnzipApp
 	{
 		// Log title of task
 		String title = OPEN_FILE_STR;
-		Logger.INSTANCE.info(title + " : " + location.toAbsolutePath());
+		Logger.INSTANCE.info(title + " : " + PathUtils.abs(location));
 
 		// Test for file
 		try
@@ -1252,9 +1368,6 @@ public class UnzipApp
 
 				// Update title
 				UnzipApp.this.updateTitle();
-
-				// Enable table view
-				tableView.setDisable(false);
 
 				// Set result on table view
 				tableView.setZipFile(result);
@@ -1315,7 +1428,7 @@ public class UnzipApp
 		if (file != null)
 		{
 			// Update directory
-			openFileDirectory = file.toAbsolutePath().getParent();
+			openFileDirectory = PathUtils.absParent(file);
 
 			// Open file
 			openFile(file);
@@ -1334,7 +1447,6 @@ public class UnzipApp
 
 		// Clear table view
 		tableView.setZipFile(null);
-		tableView.setDisable(true);
 
 		// Update title
 		updateTitle();
@@ -1355,10 +1467,10 @@ public class UnzipApp
 		if (zipFile != null)
 		{
 			PropertiesPane.create()
-							.padding(new Insets(2.0))
-							.nameConverter(name -> name.toLowerCase())
-							.properties1(zipFile.getProperties())
-							.showDialog(primaryStage, ZIP_FILE_PROPERTIES_KEY, PROPERTIES_STR);
+					.padding(new Insets(2.0))
+					.nameConverter(name -> name.toLowerCase())
+					.properties1(zipFile.getProperties())
+					.showDialog(primaryStage, ZIP_FILE_PROPERTIES_KEY, PROPERTIES_STR);
 		}
 	}
 
@@ -1411,18 +1523,6 @@ public class UnzipApp
 			// Update instance variable
 			preferences = result;
 
-			// Apply theme
-			StyleManager styleManager = StyleManager.INSTANCE;
-			String themeId = preferences.getThemeId();
-			if ((themeId != null) && !themeId.equals(styleManager.getThemeId()))
-			{
-				// Update theme
-				styleManager.selectTheme(themeId);
-
-				// Reapply style sheet to the scenes of all JavaFX windows
-				styleManager.reapplyStylesheet();
-			}
-
 			// Update height of cells of table view
 			tableView.updateCellHeight();
 			tableView.refresh();
@@ -1442,7 +1542,8 @@ public class UnzipApp
 
 		// Display dialog for extraction location
 		ZipFileModel zipFile = getZipFile();
-		ExtractionDialog.Result result = new ExtractionDialog(primaryStage, zipFile.getLocation().getParent()).showDialog();
+		ExtractionDialog.Result result =
+				new ExtractionDialog(primaryStage, zipFile.getLocation().getParent()).showDialog();
 		if (result == null)
 			return;
 
@@ -1562,13 +1663,18 @@ public class UnzipApp
 			// Call superclass constructor
 			super(ID, NAME_KEY, SHORT_NAME, LONG_NAME);
 
-			// Get location of parent directory of config file
-			AppAuxDirectory.Directory directory = AppAuxDirectory.getDirectory(NAME_KEY, UnzipApp.class);
-			if (directory == null)
-				throw new BaseException(ErrorMsg.NO_AUXILIARY_DIRECTORY);
+			// Determine location of config file
+			if (!noConfigFile())
+			{
+				// Get location of parent directory of config file
+				AppAuxDirectory.Directory directory =
+						AppAuxDirectory.getDirectory(NAME_KEY, getClass().getEnclosingClass());
+				if (directory == null)
+					throw new BaseException(ErrorMsg.NO_AUXILIARY_DIRECTORY);
 
-			// Set parent directory of config file
-			setDirectory(directory.location());
+				// Set parent directory of config file
+				setDirectory(directory.location());
+			}
 		}
 
 		//--------------------------------------------------------------
@@ -1599,6 +1705,12 @@ public class UnzipApp
 		private static final	String	FILE_EDITOR_STR			= "File editor";
 
 	////////////////////////////////////////////////////////////////////
+	//  Class variables
+	////////////////////////////////////////////////////////////////////
+
+		private static	String	editorName;
+
+	////////////////////////////////////////////////////////////////////
 	//  Instance variables
 	////////////////////////////////////////////////////////////////////
 
@@ -1614,13 +1726,22 @@ public class UnzipApp
 			// Call superclass constructor
 			super(primaryStage, MethodHandles.lookup().lookupClass().getCanonicalName(), null, SELECT_FILE_EDITOR_STR);
 
+			// If no specific editor is available, start with previous editor
+			if (((editor == null) || !editor.hasFilenamePatterns()) && (editorName != null))
+			{
+				editor = preferences.getFileEditors().stream()
+								.filter(ed -> editorName.equals(ed.getName()))
+								.findFirst()
+								.orElse(null);
+			}
+
 			// Create spinner: file editor
 			CollectionSpinner<FileEditor> editorSpinner =
 					CollectionSpinner.leftRightH(HPos.CENTER, true, preferences.getFileEditors(), editor, null,
 												 FileEditor::getName);
 
 			// Create control pane
-			HBox controlPane = new HBox(6.0, new Label(FILE_EDITOR_STR), editorSpinner);
+			HBox controlPane = new HBox(6.0, Labels.hNoShrink(FILE_EDITOR_STR), editorSpinner);
 			controlPane.setAlignment(Pos.CENTER_LEFT);
 
 			// Add control pane to content pane
@@ -1630,7 +1751,7 @@ public class UnzipApp
 			getContentPane().setPadding(CONTENT_PANE_PADDING);
 
 			// Create button: edit
-			Button editButton = new Button(EDIT_STR);
+			Button editButton = Buttons.hNoShrink(EDIT_STR);
 			editButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 			editButton.setOnAction(event ->
 			{
@@ -1640,13 +1761,20 @@ public class UnzipApp
 			addButton(editButton, HPos.RIGHT);
 
 			// Create button: cancel
-			Button cancelButton = new Button(CANCEL_STR);
+			Button cancelButton = Buttons.hNoShrink(CANCEL_STR);
 			cancelButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 			cancelButton.setOnAction(event -> requestClose());
 			addButton(cancelButton, HPos.RIGHT);
 
 			// Fire 'cancel' button if Escape key is pressed; fire 'edit' button if Ctrl+Enter is pressed
 			setKeyFireButton(cancelButton, editButton);
+
+			// Save editor name when dialog is closed
+			setOnHiding(event ->
+			{
+				FileEditor editor0 = editorSpinner.getItem();
+				editorName = (editor0 == null) ? null : editor0.getName();
+			});
 
 			// Apply new style sheet to scene
 			applyStyleSheet();

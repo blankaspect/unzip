@@ -349,9 +349,9 @@ public class ZipFileComparison
 			String	key)
 		{
 			return Stream.of(values())
-							.filter(value -> value.getKey().equals(key))
-							.findFirst()
-							.orElse(null);
+					.filter(value -> value.getKey().equals(key))
+					.findFirst()
+					.orElse(null);
 		}
 
 		//--------------------------------------------------------------

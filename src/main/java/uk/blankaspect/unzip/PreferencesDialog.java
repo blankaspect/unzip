@@ -23,6 +23,7 @@ import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
 
 import java.util.List;
+import java.util.Objects;
 
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
@@ -40,6 +41,7 @@ import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 
 import javafx.scene.paint.Color;
 
@@ -51,17 +53,27 @@ import uk.blankaspect.common.css.CssSelector;
 import uk.blankaspect.common.function.IProcedure0;
 import uk.blankaspect.common.function.IProcedure1;
 
+import uk.blankaspect.common.message.MessageConstants;
+
+import uk.blankaspect.common.misc.SystemUtils;
+
 import uk.blankaspect.common.string.StringUtils;
 
+import uk.blankaspect.ui.jfx.button.Buttons;
+
+import uk.blankaspect.ui.jfx.container.PaneStyle;
 import uk.blankaspect.ui.jfx.container.PathnamePane;
 
+import uk.blankaspect.ui.jfx.control.ControlUtils;
+
 import uk.blankaspect.ui.jfx.dialog.ConfirmationDialog;
-import uk.blankaspect.ui.jfx.dialog.MessageDialog;
 import uk.blankaspect.ui.jfx.dialog.SimpleModalDialog;
 import uk.blankaspect.ui.jfx.dialog.SingleTextFieldDialog;
 import uk.blankaspect.ui.jfx.dialog.WarningDialog;
 
 import uk.blankaspect.ui.jfx.image.MessageIcon32;
+
+import uk.blankaspect.ui.jfx.label.Labels;
 
 import uk.blankaspect.ui.jfx.listview.ListViewEditor;
 import uk.blankaspect.ui.jfx.listview.ListViewStyle;
@@ -125,7 +137,8 @@ public class PreferencesDialog
 
 	private static final	Insets	FILENAME_EXT_LIST_VIEW_EDITOR_PADDING	= new Insets(4.0);
 
-	private static final	Insets	FILENAME_EXT_LIST_VIEW_EDITOR_BUTTON_PANE_PADDING	= new Insets(2.0, 6.0, 2.0, 0.0);
+	private static final	Insets	FILENAME_EXT_LIST_VIEW_EDITOR_BUTTON_PANE_PADDING	=
+			new Insets(2.0, 6.0, 2.0, 0.0);
 
 	private static final	int		DIRECTORY_FIELD_NUM_COLUMNS	= 40;
 
@@ -134,9 +147,10 @@ public class PreferencesDialog
 
 	private static final	Insets	FILE_EDITOR_LIST_VIEW_EDITOR_PADDING	= new Insets(4.0);
 
-	private static final	Insets	FILE_EDITOR_LIST_VIEW_EDITOR_BUTTON_PANE_PADDING	= new Insets(2.0, 6.0, 2.0, 0.0);
+	private static final	Insets	FILE_EDITOR_LIST_VIEW_EDITOR_BUTTON_PANE_PADDING	=
+			new Insets(2.0, 6.0, 2.0, 0.0);
 
-	private static final	Path	DEFAULT_DIRECTORY	= Path.of(System.getProperty("user.dir", "."));
+	private static final	Path	DEFAULT_DIRECTORY	= SystemUtils.workingDirectory();
 
 	private static final	String	FILENAME_SUFFIX_EDIT_NAME	= "filename suffix";
 	private static final	String	FILENAME_SUFFIX_EDIT_LABEL	= "Filename suffix";
@@ -150,13 +164,14 @@ public class PreferencesDialog
 	private static final	String	REMOVE_FILENAME_SUFFIX_QUESTION_STR		= "Do you want to remove the '%s' suffix?";
 	private static final	String	DEFAULT_EXTRACTION_DIR_STR				= "Default extraction directory";
 	private static final	String	CHOOSE_DEFAULT_EXTRACTION_DIR_STR		= "Choose default extraction directory";
-	private static final	String	NO_DEFAULT_EXTRACTION_DIR_STR			= "A default extraction directory must be specified";
+	private static final	String	NO_DEFAULT_EXTRACTION_DIR_STR			=
+			"A default extraction directory must be specified";
 	private static final	String	FILE_EDITOR_EXTRACTION_DIR_STR			= "File-editor extraction directory";
 	private static final	String	CHOOSE_FILE_EDITOR_EXTRACTION_DIR_STR	= "Choose file-editor extraction directory";
 	private static final	String	FILE_EDITOR_STR							= "file editor";
 	private static final	String	REMOVE_EDITOR_STR						= "Remove editor";
-	private static final	String	REMOVE_EDITOR_QUESTION_STR				= "Editor: %s" + MessageDialog.MESSAGE_SEPARATOR
-																				+ "Do you want to remove the selected editor?";
+	private static final	String	REMOVE_EDITOR_QUESTION_STR				=
+			"Editor: %s" + MessageConstants.LABEL_SEPARATOR + "Do you want to remove the selected editor?";
 	private static final	String	REMOVE_STR								= "Remove";
 
 	/** CSS colour properties. */
@@ -165,10 +180,11 @@ public class PreferencesDialog
 		ColourProperty.of
 		(
 			FxProperty.BORDER_COLOUR,
-			ColourKey.TABBED_PANE_BORDER,
+			PaneStyle.ColourKey.PANE_BORDER,
 			CssSelector.builder()
-						.cls(StyleClass.TABBED_PANE)
-						.build()
+					.cls(StyleClass.PREFERENCES_DIALOG_ROOT)
+					.desc(StyleClass.TABBED_PANE)
+					.build()
 		)
 	);
 
@@ -176,25 +192,20 @@ public class PreferencesDialog
 	private static final	List<CssRuleSet>	RULE_SETS	= List.of
 	(
 		RuleSetBuilder.create()
-						.selector(CssSelector.builder()
-									.cls(StyleClass.TABBED_PANE)
-									.build())
-						.borders(Side.BOTTOM)
-						.build()
+				.selector(CssSelector.builder()
+						.cls(StyleClass.PREFERENCES_DIALOG_ROOT)
+						.desc(StyleClass.TABBED_PANE)
+						.build())
+				.borders(Side.BOTTOM)
+				.build()
 	);
 
 	/** CSS style classes. */
 	private interface StyleClass
 	{
-		String	TABBED_PANE	= StyleConstants.CLASS_PREFIX + "unzip-preferences-dialog-tabbed-pane";
-	}
+		String	PREFERENCES_DIALOG_ROOT	= StyleConstants.APP_CLASS_PREFIX + "preferences-dialog-root";
 
-	/** Keys of colours that are used in colour properties. */
-	private interface ColourKey
-	{
-		String	PREFIX	= StyleManager.colourKeyPrefix(MethodHandles.lookup().lookupClass().getEnclosingClass());
-
-		String	TABBED_PANE_BORDER	= PREFIX + "tabbedPane.border";
+		String	TABBED_PANE	= StyleConstants.CLASS_PREFIX + "preferences-dialog-tabbed-pane";
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -218,7 +229,7 @@ public class PreferencesDialog
 	{
 		// Register the style properties of this class and its dependencies with the style manager
 		StyleManager.INSTANCE.register(PreferencesDialog.class, COLOUR_PROPERTIES, RULE_SETS,
-									   ListViewStyle.class);
+									   PaneStyle.class, ListViewStyle.class);
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -232,9 +243,12 @@ public class PreferencesDialog
 		// Call superclass constructor
 		super(owner, MethodHandles.lookup().lookupClass().getName(), null, PREFERENCES_STR);
 
+		// Set style class on root node of scene graph
+		getScene().getRoot().getStyleClass().add(StyleClass.PREFERENCES_DIALOG_ROOT);
+
 		// Create tabbed pane
 		tabPane = new TabPane2();
-		tabPane.setBorder(SceneUtils.createSolidBorder(getColour(ColourKey.TABBED_PANE_BORDER), Side.BOTTOM));
+		tabPane.setBorder(SceneUtils.createSolidBorder(getColour(PaneStyle.ColourKey.PANE_BORDER), Side.BOTTOM));
 		tabPane.setTabMinWidth(MIN_TAB_WIDTH);
 		tabPane.getStyleClass().add(StyleClass.TABBED_PANE);
 
@@ -242,8 +256,7 @@ public class PreferencesDialog
 		setContent(tabPane);
 
 		// Set padding around header of tabbed pane
-		tabPane.skinProperty().addListener(observable ->
-				TabPaneUtils.setHeaderAreaPadding(tabPane, TABBED_PANE_HEADER_PADDING));
+		ControlUtils.onSkin(tabPane, () -> TabPaneUtils.setHeaderAreaPadding(tabPane, TABBED_PANE_HEADER_PADDING));
 
 		// Add tabs to tabbed pane
 		for (TabId tabId : TabId.values())
@@ -259,22 +272,25 @@ public class PreferencesDialog
 		StyleManager styleManager = StyleManager.INSTANCE;
 		IProcedure1<String> selectTheme = id ->
 		{
-			// Update theme
-			styleManager.selectTheme(id);
+			if (id != null)
+			{
+				// Update theme
+				styleManager.selectTheme(id);
 
-			// Reapply style sheet to the scenes of all JavaFX windows
-			styleManager.reapplyStylesheet();
+				// Reapply style sheet to the scenes of all JavaFX windows
+				styleManager.reapplyStylesheet();
+			}
 		};
 
 		// Spinner: theme
 		String themeId = styleManager.getThemeId();
 		CollectionSpinner<String> themeSpinner =
 				CollectionSpinner.leftRightH(HPos.CENTER, true, styleManager.getThemeIds(), themeId, null,
-											 id -> styleManager.findTheme(id).getName());
+											 id -> styleManager.findTheme(id).name());
 		themeSpinner.itemProperty().addListener((observable, oldId, id) -> selectTheme.invoke(id));
 
 		// Pane: appearance
-		HBox appearancePane = new HBox(CONTROL_H_GAP, new Label(THEME_STR), themeSpinner);
+		HBox appearancePane = new HBox(CONTROL_H_GAP, Labels.hNoShrink(THEME_STR), themeSpinner);
 		appearancePane.setAlignment(Pos.CENTER);
 		appearancePane.setPadding(CONTROL_PANE_PADDING);
 
@@ -293,7 +309,7 @@ public class PreferencesDialog
 
 		// Initialise column constraints
 		ColumnConstraints column = new ColumnConstraints();
-		column.setMinWidth(GridPane.USE_PREF_SIZE);
+		column.setMinWidth(Region.USE_PREF_SIZE);
 		column.setHalignment(HPos.RIGHT);
 		viewPane.getColumnConstraints().add(column);
 
@@ -307,7 +323,8 @@ public class PreferencesDialog
 		// Spinner: cell vertical padding
 		Spinner<Integer> cellVerticalPaddingSpinner =
 				SpinnerFactory.integerSpinner(MIN_CELL_VERTICAL_PADDING, MAX_CELL_VERTICAL_PADDING,
-											  preferences.getCellVerticalPadding(), CELL_VERTICAL_PADDING_SPINNER_NUM_DIGITS);
+											  preferences.getCellVerticalPadding(),
+											  CELL_VERTICAL_PADDING_SPINNER_NUM_DIGITS);
 		viewPane.addRow(row++, new Label(VERTICAL_PADDING_STR), cellVerticalPaddingSpinner);
 
 		// Spinner: column-header pop-up delay
@@ -317,7 +334,7 @@ public class PreferencesDialog
 											  COLUMN_HEADER_POP_UP_DELAY_SPINNER_NUM_DIGITS);
 
 		// Pane: column-header pop-up delay
-		HBox columnHeaderPopUpDelayPane = new HBox(4.0, columnHeaderPopUpDelaySpinner, new Label(MS_STR));
+		HBox columnHeaderPopUpDelayPane = new HBox(4.0, columnHeaderPopUpDelaySpinner, Labels.hNoShrink(MS_STR));
 		columnHeaderPopUpDelayPane.setAlignment(Pos.CENTER_LEFT);
 		viewPane.addRow(row++, new Label(COLUMN_HEADER_POP_UP_DELAY_STR), columnHeaderPopUpDelayPane);
 
@@ -331,7 +348,7 @@ public class PreferencesDialog
 		SimpleTextListView<String> filenameSuffixListView =
 				new SimpleTextListView<>(preferences.getZipFilenameSuffixes(), null);
 		filenameSuffixListView.setPrefSize(FILENAME_EXT_LIST_VIEW_WIDTH, FILENAME_EXT_LIST_VIEW_HEIGHT);
-		filenameSuffixListView.setMaxWidth(SimpleTextListView.USE_PREF_SIZE);
+		filenameSuffixListView.setMaxWidth(Region.USE_PREF_SIZE);
 
 		// Create list-view editor for zip filename suffixes
 		Window window = this;
@@ -339,28 +356,36 @@ public class PreferencesDialog
 				new ListViewEditor<>(filenameSuffixListView, new ListViewEditor.IEditor<>()
 		{
 			@Override
+			public boolean allowAction(
+				ListViewEditor.Action	action,
+				String					suffix)
+			{
+				switch (action)
+				{
+					case REMOVE:
+						return !Constants.ZIP_FILENAME_EXTENSION.equals(suffix);
+
+					default:
+						return true;
+				}
+			}
+
+			@Override
 			public String edit(
 				ListViewEditor.Action	action,
 				String					suffix)
 			{
 				return SingleTextFieldDialog
-							.show(window, "", action + " " + FILENAME_SUFFIX_EDIT_NAME, FILENAME_SUFFIX_EDIT_LABEL, suffix,
-								  FilterFactory.createFilter((ch, index, text) ->
-											Character.isWhitespace(ch) ? "" : Character.toString(ch)),
-								  text -> !text.isEmpty() && !filenameSuffixListView.getItems().contains(text));
-		}
+						.show(window, "", action + " " + FILENAME_SUFFIX_EDIT_NAME, FILENAME_SUFFIX_EDIT_LABEL, suffix,
+							  FilterFactory.createFilter((ch, index, text) ->
+										Character.isWhitespace(ch) ? "" : Character.toString(ch)),
+							  text -> !text.isEmpty() && !filenameSuffixListView.getItems().contains(text));
+			}
 
 			@Override
 			public boolean hasDialog()
 			{
 				return true;
-			}
-
-			@Override
-			public boolean isRemovable(
-				String	suffix)
-			{
-				return !Constants.ZIP_FILENAME_EXTENSION.equals(suffix);
 			}
 
 			@Override
@@ -397,7 +422,7 @@ public class PreferencesDialog
 
 		// Initialise column constraints
 		column = new ColumnConstraints();
-		column.setMinWidth(GridPane.USE_PREF_SIZE);
+		column.setMinWidth(Region.USE_PREF_SIZE);
 		column.setHalignment(HPos.RIGHT);
 		column.setHgrow(Priority.NEVER);
 		locationsPane.getColumnConstraints().add(column);
@@ -420,6 +445,7 @@ public class PreferencesDialog
 		PathnameField defaultExtDirectoryField =
 				new PathnameField(preferences.getDefaultExtractionDirectory(), DIRECTORY_FIELD_NUM_COLUMNS);
 		defaultExtDirectoryField.setShowInvalidPathnameError(true);
+		defaultExtDirectoryField.setLocationMatcher(PathnameField.DIRECTORY_MATCHER);
 
 		// Create pathname pane: default extraction directory
 		PathnamePane defaultExtDirectoryPane = new PathnamePane(defaultExtDirectoryField, event ->
@@ -446,6 +472,7 @@ public class PreferencesDialog
 		PathnameField fileEditorExtDirectoryField =
 				new PathnameField(preferences.getFileEditorExtractionDirectory(), DIRECTORY_FIELD_NUM_COLUMNS);
 		fileEditorExtDirectoryField.setShowInvalidPathnameError(true);
+		fileEditorExtDirectoryField.setLocationMatcher(PathnameField.DIRECTORY_MATCHER);
 
 		// Create pathname pane: file-editor extraction directory
 		PathnamePane fileEditorExtDirectoryPane = new PathnamePane(fileEditorExtDirectoryField, event ->
@@ -473,7 +500,7 @@ public class PreferencesDialog
 		SimpleTextListView<FileEditor> fileEditorListView =
 				new SimpleTextListView<>(preferences.getFileEditors(), editor -> editor.getName());
 		fileEditorListView.setPrefSize(FILE_EDITOR_LIST_VIEW_WIDTH, FILE_EDITOR_LIST_VIEW_HEIGHT);
-		fileEditorListView.setMaxWidth(SimpleTextListView.USE_PREF_SIZE);
+		fileEditorListView.setMaxWidth(Region.USE_PREF_SIZE);
 
 		// Create list-view editor for file editors
 		ListViewEditor<FileEditor> fileEditorListViewEditor =
@@ -519,7 +546,7 @@ public class PreferencesDialog
 		//----  Window
 
 		// Create button: OK
-		Button okButton = new Button(OK_STR);
+		Button okButton = Buttons.hNoShrink(OK_STR);
 		okButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 		okButton.setOnAction(event ->
 		{
@@ -544,7 +571,6 @@ public class PreferencesDialog
 
 			// Set result
 			result = new Preferences(
-				themeSpinner.getItem(),
 				cellVerticalPaddingSpinner.getValue(),
 				columnHeaderPopUpDelaySpinner.getValue(),
 				filenameSuffixListViewEditor.getItems(),
@@ -559,7 +585,7 @@ public class PreferencesDialog
 		addButton(okButton, HPos.RIGHT);
 
 		// Create button: cancel
-		Button cancelButton = new Button(CANCEL_STR);
+		Button cancelButton = Buttons.hNoShrink(CANCEL_STR);
 		cancelButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 		cancelButton.setOnAction(event -> requestClose());
 		addButton(cancelButton, HPos.RIGHT);
@@ -571,7 +597,7 @@ public class PreferencesDialog
 			selectedTabIndex = tabPane.getSelectionModel().getSelectedIndex();
 
 			// If dialog was not accepted, restore old theme
-			if ((result == null) && (themeId != null) && !themeId.equals(styleManager.getThemeId()))
+			if ((result == null) && !Objects.equals(themeId, styleManager.getThemeId()))
 				selectTheme.invoke(themeId);
 		});
 
@@ -595,12 +621,12 @@ public class PreferencesDialog
 	//------------------------------------------------------------------
 
 	/**
-	 * Returns the colour that is associated with the specified key in the colour map of the selected theme of the
+	 * Returns the colour that is associated with the specified key in the colour map of the current theme of the
 	 * {@linkplain StyleManager style manager}.
 	 *
 	 * @param  key
 	 *           the key of the desired colour.
-	 * @return the colour that is associated with {@code key} in the colour map of the selected theme of the style
+	 * @return the colour that is associated with {@code key} in the colour map of the current theme of the style
 	 *         manager, or {@link StyleManager#DEFAULT_COLOUR} if there is no such colour.
 	 */
 
@@ -742,7 +768,7 @@ public class PreferencesDialog
 		private static final	String	COMMAND_STR				= "Command";
 		private static final	String	FILENAME_PATTERNS_STR	= "Filename patterns";
 		private static final	String	REMOVE_PATTERN_STR		= "Remove pattern";
-		private static final	String	REMOVE_QUESTION_STR		= "Pattern: %s" + MessageDialog.MESSAGE_SEPARATOR
+		private static final	String	REMOVE_QUESTION_STR		= "Pattern: %s" + MessageConstants.LABEL_SEPARATOR
 																	+ "Do you want to remove the selected pattern?";
 		private static final	String	REMOVE_STR				= "Remove";
 
@@ -773,17 +799,17 @@ public class PreferencesDialog
 			controlPane.setAlignment(Pos.CENTER);
 
 			// Initialise column constraints
-			ColumnConstraints column1 = new ColumnConstraints();
-			column1.setMinWidth(GridPane.USE_PREF_SIZE);
-			column1.setHalignment(HPos.RIGHT);
-			column1.setHgrow(Priority.NEVER);
-			controlPane.getColumnConstraints().add(column1);
+			ColumnConstraints column = new ColumnConstraints();
+			column.setMinWidth(Region.USE_PREF_SIZE);
+			column.setHalignment(HPos.RIGHT);
+			column.setHgrow(Priority.NEVER);
+			controlPane.getColumnConstraints().add(column);
 
-			ColumnConstraints column2 = new ColumnConstraints();
-			column2.setHalignment(HPos.LEFT);
-			column2.setHgrow(Priority.ALWAYS);
-			column2.setFillWidth(false);
-			controlPane.getColumnConstraints().add(column2);
+			column = new ColumnConstraints();
+			column.setHalignment(HPos.LEFT);
+			column.setHgrow(Priority.ALWAYS);
+			column.setFillWidth(false);
+			controlPane.getColumnConstraints().add(column);
 
 			// Initialise row index
 			int row = 0;
@@ -851,7 +877,7 @@ public class PreferencesDialog
 			addContent(controlPane);
 
 			// Create button: OK
-			Button okButton = new Button(OK_STR);
+			Button okButton = Buttons.hNoShrink(OK_STR);
 			okButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 			okButton.setOnAction(event ->
 			{
@@ -876,7 +902,7 @@ public class PreferencesDialog
 			updateOkButton.invoke();
 
 			// Create button: cancel
-			Button cancelButton = new Button(CANCEL_STR);
+			Button cancelButton = Buttons.hNoShrink(CANCEL_STR);
 			cancelButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 			cancelButton.setOnAction(event -> requestClose());
 			addButton(cancelButton, HPos.RIGHT);

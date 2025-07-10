@@ -30,10 +30,11 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Objects;
 
 import java.util.function.Predicate;
 
-import javafx.collections.FXCollections;
+import java.util.stream.Stream;
 
 import javafx.geometry.Bounds;
 import javafx.geometry.Dimension2D;
@@ -45,6 +46,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.ToggleGroup;
 
@@ -55,6 +57,7 @@ import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 
 import javafx.scene.paint.Color;
 
@@ -66,30 +69,36 @@ import uk.blankaspect.common.basictree.StringNode;
 
 import uk.blankaspect.common.css.CssSelector;
 
+import uk.blankaspect.common.exception2.UnexpectedRuntimeException;
+
 import uk.blankaspect.common.filesystem.PathnameUtils;
 
 import uk.blankaspect.common.function.IFunction0;
 import uk.blankaspect.common.function.IProcedure0;
 import uk.blankaspect.common.function.IProcedure1;
 
+import uk.blankaspect.common.message.MessageConstants;
+
+import uk.blankaspect.common.misc.SystemUtils;
+
+import uk.blankaspect.common.os.OsUtils;
+
 import uk.blankaspect.common.string.StringUtils;
 
-import uk.blankaspect.ui.jfx.button.ImageButton;
+import uk.blankaspect.ui.jfx.button.Buttons;
+import uk.blankaspect.ui.jfx.button.ImageDataButton;
 
 import uk.blankaspect.ui.jfx.clipboard.ClipboardUtils;
 
 import uk.blankaspect.ui.jfx.combobox.SimpleComboBox;
 
+import uk.blankaspect.ui.jfx.container.PathnamePane;
+
 import uk.blankaspect.ui.jfx.dialog.ConfirmationDialog;
-import uk.blankaspect.ui.jfx.dialog.MessageDialog;
-import uk.blankaspect.ui.jfx.dialog.PathnameFieldDialog;
 import uk.blankaspect.ui.jfx.dialog.SimpleModalDialog;
 
 import uk.blankaspect.ui.jfx.image.MessageIcon24;
 import uk.blankaspect.ui.jfx.image.MessageIcon32;
-
-import uk.blankaspect.ui.jfx.listview.ListViewEditor;
-import uk.blankaspect.ui.jfx.listview.SimpleTextListView;
 
 import uk.blankaspect.ui.jfx.locationchooser.LocationChooser;
 
@@ -103,7 +112,11 @@ import uk.blankaspect.ui.jfx.style.FxPseudoClass;
 import uk.blankaspect.ui.jfx.style.StyleConstants;
 import uk.blankaspect.ui.jfx.style.StyleManager;
 
+import uk.blankaspect.ui.jfx.tableview.TableViewEditor;
+
 import uk.blankaspect.ui.jfx.text.TextUtils;
+
+import uk.blankaspect.ui.jfx.textfield.PathnameField;
 
 import uk.blankaspect.ui.jfx.tooltip.TooltipDecorator;
 
@@ -144,11 +157,14 @@ public class ExtractionDialog
 	/** The preferred number of columns of a directory field. */
 	private static final	int		DIRECTORY_FIELD_NUM_COLUMNS	= 40;
 
+	/** The factor by which the text height is multiplied to give the preferred width of a directory label. */
+	private static final	double	DIRECTORY_LABEL_WIDTH_FACTOR	= 25.0;
+
 	/** The margins around the <i>flatten</i> check box. */
 	private static final	Insets	FLATTEN_CHECK_BOX_MARGINS	= new Insets(4.0, 0.0, 0.0, 0.0);
 
 	/** The default initial directory of a file chooser. */
-	private static final	Path	DEFAULT_DIRECTORY	= Path.of(System.getProperty("user.home", "."));
+	private static final	Path	DEFAULT_DIRECTORY	= SystemUtils.userHomeDirectory();
 
 	/** The file-system location filter for drag-and-drop actions. */
 	private static final	Predicate<Path>	DRAG_AND_DROP_FILTER	= location ->
@@ -158,13 +174,15 @@ public class ExtractionDialog
 	private static final	String	ELLIPSIS_STR				= "...";
 	private static final	String	EXTRACT_FILES_STR			= "Extract files";
 	private static final	String	COPY_TO_EDITABLE_STR		= "Copy to editable field";
+	private static final	String	SHOW_LIST_STR				= "Show list (Ctrl+Space in field)";
 	private static final	String	FLATTEN_STR					= "Flatten";
 	private static final	String	FILENAME_ONLY_STR			= "Filename only: omit parent directory";
 	private static final	String	EXTRACT_STR					= "Extract";
 	private static final	String	OUTPUT_DIRECTORY_STR		= "Output directory";
 	private static final	String	NOT_A_VALID_PATHNAME_STR	= "'%s' is not a valid pathname.";
-	private static final	String	CHOOSE_DIRECTORY_STR		= "Choose directory";
+	private static final	String	CHOOSE_DIRECTORY_STR		= "Choose a directory";
 	private static final	String	ADD_DIRECTORY_STR			= "Add directory to list";
+	private static final	String	DIRECTORY_STR				= "directory";
 	private static final	String	EDIT_DIRECTORIES_STR		= "Edit list of directories";
 
 	/** CSS colour properties. */
@@ -175,54 +193,54 @@ public class ExtractionDialog
 			FxProperty.TEXT_FILL,
 			ColourKey.DIRECTORY_LABEL_TEXT,
 			CssSelector.builder()
-						.cls(StyleClass.EXTRACTION_DIALOG)
-						.desc(StyleClass.DIRECTORY_LABEL)
-						.build()
+					.cls(StyleClass.EXTRACTION_DIALOG_ROOT)
+					.desc(StyleClass.DIRECTORY_LABEL)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.BACKGROUND_COLOUR,
 			ColourKey.DIRECTORY_LABEL_BACKGROUND,
 			CssSelector.builder()
-						.cls(StyleClass.EXTRACTION_DIALOG)
-						.desc(StyleClass.DIRECTORY_LABEL)
-						.build()
+					.cls(StyleClass.EXTRACTION_DIALOG_ROOT)
+					.desc(StyleClass.DIRECTORY_LABEL)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.BACKGROUND_COLOUR,
 			Color.TRANSPARENT,
 			CssSelector.builder()
-						.cls(StyleClass.EXTRACTION_DIALOG)
-						.desc(StyleClass.DIRECTORY_LABEL).pseudo(FxPseudoClass.DISABLED)
-						.build()
+					.cls(StyleClass.EXTRACTION_DIALOG_ROOT)
+					.desc(StyleClass.DIRECTORY_LABEL).pseudo(FxPseudoClass.DISABLED)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.BORDER_COLOUR,
 			ColourKey.DIRECTORY_LABEL_BORDER,
 			CssSelector.builder()
-						.cls(StyleClass.EXTRACTION_DIALOG)
-						.desc(StyleClass.DIRECTORY_LABEL)
-						.build()
+					.cls(StyleClass.EXTRACTION_DIALOG_ROOT)
+					.desc(StyleClass.DIRECTORY_LABEL)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.BORDER_COLOUR,
 			ColourKey.DIRECTORY_LABEL_BORDER_DISABLED,
 			CssSelector.builder()
-						.cls(StyleClass.EXTRACTION_DIALOG)
-						.desc(StyleClass.DIRECTORY_LABEL).pseudo(FxPseudoClass.DISABLED)
-						.build()
+					.cls(StyleClass.EXTRACTION_DIALOG_ROOT)
+					.desc(StyleClass.DIRECTORY_LABEL).pseudo(FxPseudoClass.DISABLED)
+					.build()
 		)
 	);
 
 	/** CSS style classes. */
 	private interface StyleClass
 	{
-		String	EXTRACTION_DIALOG	= StyleConstants.CLASS_PREFIX + "unzip-extraction-dialog";
+		String	EXTRACTION_DIALOG_ROOT	= StyleConstants.APP_CLASS_PREFIX + "extraction-dialog-root";
 
-		String	DIRECTORY_LABEL		= StyleConstants.CLASS_PREFIX + "directory-label";
+		String	DIRECTORY_LABEL	= StyleConstants.CLASS_PREFIX + "directory-label";
 	}
 
 	/** Keys of colours that are used in colour properties. */
@@ -274,6 +292,9 @@ public class ExtractionDialog
 		// Set properties
 		setResizable(true);
 
+		// Set style class on root node of scene graph
+		getScene().getRoot().getStyleClass().add(StyleClass.EXTRACTION_DIALOG_ROOT);
+
 		// Create equaliser for radio buttons
 		RadioButtonWidthEqualiser rbwe = new RadioButtonWidthEqualiser();
 
@@ -295,19 +316,18 @@ public class ExtractionDialog
 		controlPane.setVgap(CONTROL_PANE_V_GAP);
 		controlPane.setAlignment(Pos.CENTER);
 		controlPane.setPadding(CONTROL_PANE_PADDING);
-		controlPane.getStyleClass().add(StyleClass.EXTRACTION_DIALOG);
 
 		// Initialise column constraints
-		ColumnConstraints column1 = new ColumnConstraints();
-		column1.setMinWidth(GridPane.USE_PREF_SIZE);
-		column1.setHalignment(HPos.RIGHT);
-		column1.setHgrow(Priority.NEVER);
-		controlPane.getColumnConstraints().add(column1);
+		ColumnConstraints column = new ColumnConstraints();
+		column.setMinWidth(Region.USE_PREF_SIZE);
+		column.setHalignment(HPos.RIGHT);
+		column.setHgrow(Priority.NEVER);
+		controlPane.getColumnConstraints().add(column);
 
-		ColumnConstraints column2 = new ColumnConstraints();
-		column2.setHalignment(HPos.LEFT);
-		column2.setHgrow(Priority.ALWAYS);
-		controlPane.getColumnConstraints().add(column2);
+		column = new ColumnConstraints();
+		column.setHalignment(HPos.LEFT);
+		column.setHgrow(Priority.ALWAYS);
+		controlPane.getColumnConstraints().add(column);
 
 		// Initialise row index
 		int row = 0;
@@ -337,7 +357,8 @@ public class ExtractionDialog
 				}
 				else
 				{
-					label.setBackground(SceneUtils.createColouredBackground(getColour(ColourKey.DIRECTORY_LABEL_BACKGROUND)));
+					label.setBackground(SceneUtils
+							.createColouredBackground(getColour(ColourKey.DIRECTORY_LABEL_BACKGROUND)));
 					label.setBorder(SceneUtils.createSolidBorder(getColour(ColourKey.DIRECTORY_LABEL_BORDER)));
 				}
 			};
@@ -353,10 +374,33 @@ public class ExtractionDialog
 		};
 
 		// Create combo box for directory
-		SimpleComboBox<String> directoryComboBox =
-				new SimpleComboBox<>(SimpleComboBox.IDENTITY_STRING_CONVERTER, state.directories);
+		SimpleComboBox<Directory> directoryComboBox = new SimpleComboBox<>(new SimpleComboBox.IConverter<>()
+		{
+			@Override
+			public String toText(
+				Directory	directory)
+			{
+				return (directory == null) ? null : directory.pathname;
+			}
+
+			@Override
+			public Directory fromText(
+				String	pathname)
+			{
+				return StringUtils.isNullOrBlank(pathname) ? null : new Directory(pathname, false);
+			}
+
+			@Override
+			public Directory copy(
+				Directory	directory)
+			{
+				return (directory == null) ? null : directory.clone();
+			}
+		},
+		state.directories);
 		directoryComboBox.setMaxWidth(Double.MAX_VALUE);
 		directoryComboBox.getTextField().setPrefColumnCount(DIRECTORY_FIELD_NUM_COLUMNS);
+		TooltipDecorator.addTooltip(directoryComboBox.getButton(), SHOW_LIST_STR);
 		HBox.setHgrow(directoryComboBox, Priority.ALWAYS);
 
 		// Create procedure to hide 'invalid pathname' pop-up
@@ -385,8 +429,8 @@ public class ExtractionDialog
 				{
 					hideInvalidPathnamePopUp.invoke();
 
-					invalidPathnamePopUp = new MessagePopUp(MessageIcon24.ERROR,
-															String.format(NOT_A_VALID_PATHNAME_STR, pathname));
+					invalidPathnamePopUp =
+							new MessagePopUp(MessageIcon24.ERROR, String.format(NOT_A_VALID_PATHNAME_STR, pathname));
 					Bounds bounds = directoryComboBox.localToScreen(directoryComboBox.getLayoutBounds());
 					invalidPathnamePopUp.show(this, bounds.getMinX(), bounds.getMaxY() - 1.0);
 				}
@@ -401,7 +445,7 @@ public class ExtractionDialog
 		directoryChooser.initDirectory(DEFAULT_DIRECTORY);
 
 		// Create button: choose directory
-		Button chooseDirectoryButton = new Button(ELLIPSIS_STR);
+		Button chooseDirectoryButton = Buttons.hNoShrink(ELLIPSIS_STR);
 		chooseDirectoryButton.setPadding(CHOOSE_DIRECTORY_BUTTON_PADDING);
 		chooseDirectoryButton.prefHeightProperty().bind(directoryComboBox.heightProperty());
 		chooseDirectoryButton.setOnAction(event ->
@@ -425,27 +469,50 @@ public class ExtractionDialog
 		HBox.setMargin(chooseDirectoryButton, new Insets(0.0, 2.0, 0.0, 6.0));
 
 		// Create button: add directory to list
-		ImageButton addDirectoryButton = new ImageButton(Images.PLUS_SIGN, ADD_DIRECTORY_STR);
+		ImageDataButton addDirectoryButton = new ImageDataButton(Images.ImageId.PLUS_SIGN, ADD_DIRECTORY_STR);
+
+		// Create procedure to update 'add directory to list' button
+		IProcedure0 updateAddDirectoryButton = () ->
+				addDirectoryButton.setDisable(StringUtils.isNullOrBlank(directoryComboBox.getText()));
+
+		// Handle action on 'add directory to list' button
 		addDirectoryButton.setOnAction(event ->
 		{
-			String text = directoryComboBox.getText();
-			if (!StringUtils.isNullOrBlank(text))
+			// Get pathname from combo box
+			String pathname = directoryComboBox.getText();
+
+			// If there is text, create directory and add it to list of items of combo box
+			if (!StringUtils.isNullOrBlank(pathname))
 			{
-				List<String> items = new ArrayList<>(directoryComboBox.getItems());
-				items.remove(text);
-				items.add(0, text);
-				directoryComboBox.setItems(items);
-				directoryComboBox.setValue(text);
+				// Ask whether to save directory
+				Boolean save = Utils.askSaveBeyondSession(this, ADD_DIRECTORY_STR, DIRECTORY_STR);
+
+				// If not cancelled, add directory to list
+				if (save != null)
+				{
+					Directory directory = new Directory(pathname, save);
+					List<Directory> items = new ArrayList<>(directoryComboBox.getItems());
+					int index = items.indexOf(directory);
+					if (index < 0)
+						items.add(directory);
+					else
+						items.set(index, directory);
+					directoryComboBox.setItems(items);
+					directoryComboBox.setValue(directory.clone());
+				}
 			}
 		});
 
+		// Update 'add directory to list' button when content of combo-box editor changes
+		directoryComboBox.getTextField().textProperty().addListener(observable -> updateAddDirectoryButton.invoke());
+
 		// Create button: edit list of directories
-		ImageButton editDirectoriesButton = new ImageButton(Images.PENCIL, EDIT_DIRECTORIES_STR);
+		ImageDataButton editDirectoriesButton = new ImageDataButton(Images.ImageId.PENCIL, EDIT_DIRECTORIES_STR);
 		editDirectoriesButton.setOnAction(event ->
 		{
-			String directory = directoryComboBox.getValue();
-			List<String> directories =
-					new EditDirectoriesDialog(this, directoryChooser, directoryComboBox.getItems()).showDialog();
+			Directory directory = directoryComboBox.getValue();
+			List<Directory> directories =
+					new DirectoryListDialog(this, directoryChooser, directoryComboBox.getItems()).showDialog();
 			if (directories != null)
 			{
 				directoryComboBox.setItems(directories);
@@ -459,6 +526,9 @@ public class ExtractionDialog
 				}
 			}
 		});
+
+		// Update 'add directory to list' button
+		updateAddDirectoryButton.invoke();
 
 		// Create pane: editable directory
 		HBox editableDirectoryPane = new HBox(2.0, directoryComboBox, chooseDirectoryButton, addDirectoryButton,
@@ -510,7 +580,7 @@ public class ExtractionDialog
 		};
 
 		// Calculate preferred width of a directory label
-		double directoryLabelWidth = TextUtils.textWidthCeil("M".repeat(DIRECTORY_FIELD_NUM_COLUMNS));
+		double directoryLabelWidth = TextUtils.textHeightCeil(DIRECTORY_LABEL_WIDTH_FACTOR);
 
 		// Create label: default directory
 		Label defaultDirectoryLabel = directoryLabelFactory.invoke();
@@ -520,7 +590,8 @@ public class ExtractionDialog
 		HBox.setHgrow(defaultDirectoryLabel, Priority.ALWAYS);
 
 		// Create button: copy default directory to editor of directory combo box
-		ImageButton defaultDirectoryCopyButton = new ImageButton(Images.COPY_TEXT_DOWN, COPY_TO_EDITABLE_STR);
+		ImageDataButton defaultDirectoryCopyButton =
+				new ImageDataButton(Images.ImageId.COPY_TEXT_DOWN, COPY_TO_EDITABLE_STR);
 		defaultDirectoryCopyButton.setOnAction(event ->
 		{
 			// Get pathname of default directory
@@ -544,7 +615,8 @@ public class ExtractionDialog
 		HBox.setHgrow(sourceDirectoryLabel, Priority.ALWAYS);
 
 		// Create button: copy source directory to editor of directory combo box
-		ImageButton sourceDirectoryCopyButton = new ImageButton(Images.COPY_TEXT_DOWN, COPY_TO_EDITABLE_STR);
+		ImageDataButton sourceDirectoryCopyButton =
+				new ImageDataButton(Images.ImageId.COPY_TEXT_DOWN, COPY_TO_EDITABLE_STR);
 		sourceDirectoryCopyButton.setOnAction(event ->
 		{
 			// Get pathname of source directory
@@ -582,7 +654,7 @@ public class ExtractionDialog
 		addContent(controlPane);
 
 		// Create button: extract
-		extractButton = new Button(EXTRACT_STR);
+		extractButton = Buttons.hNoShrink(EXTRACT_STR);
 		extractButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 		extractButton.setOnAction(event ->
 		{
@@ -632,7 +704,7 @@ public class ExtractionDialog
 		updateExtractButton.invoke();
 
 		// Create button: cancel
-		Button cancelButton = new Button(CANCEL_STR);
+		Button cancelButton = Buttons.hNoShrink(CANCEL_STR);
 		cancelButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 		cancelButton.setOnAction(event -> requestClose());
 		addButton(cancelButton, HPos.RIGHT);
@@ -641,7 +713,7 @@ public class ExtractionDialog
 		setKeyFireButton(cancelButton, extractButton);
 
 		// Update images of image buttons
-		Images.updateImageButtons(getScene());
+		ImageDataButton.updateButtons(getScene());
 
 		// Set drag-and-drop handler to accept a directory
 		getScene().setOnDragOver(event ->
@@ -693,13 +765,17 @@ public class ExtractionDialog
 		// Process saved directory
 		if (!StringUtils.isNullOrEmpty(state.directory))
 		{
-			int index = (File.separatorChar == '\\') ? StringUtils.indexOfIgnoreCase(state.directory, state.directories)
-													 : state.directories.indexOf(state.directory);
+			List<String> pathnames = state.directories.stream().map(dir -> dir.pathname).toList();
+			int index = OsUtils.isWindows() ? StringUtils.indexOfIgnoreCase(state.directory, pathnames)
+											: pathnames.indexOf(state.directory);
 			if (index < 0)
 				directoryComboBox.setText(state.directory);
 			else
 				directoryComboBox.setValue(state.directories.get(index));
 		}
+
+		// Apply style sheet to scene
+		applyStyleSheet();
 	}
 
 	//------------------------------------------------------------------
@@ -724,12 +800,12 @@ public class ExtractionDialog
 	//------------------------------------------------------------------
 
 	/**
-	 * Returns the colour that is associated with the specified key in the colour map of the selected theme of the
+	 * Returns the colour that is associated with the specified key in the colour map of the current theme of the
 	 * {@linkplain StyleManager style manager}.
 	 *
 	 * @param  key
 	 *           the key of the desired colour.
-	 * @return the colour that is associated with {@code key} in the colour map of the selected theme of the style
+	 * @return the colour that is associated with {@code key} in the colour map of the current theme of the style
 	 *         manager, or {@link StyleManager#DEFAULT_COLOUR} if there is no such colour.
 	 */
 
@@ -823,7 +899,7 @@ public class ExtractionDialog
 			ToggleGroup					toggleGroup)
 		{
 			RadioButton button = widthEqualiser.createRadioButton(" " + text);
-			button.setMinWidth(RadioButton.USE_PREF_SIZE);
+			button.setMinWidth(Region.USE_PREF_SIZE);
 			button.setToggleGroup(toggleGroup);
 			button.setUserData(this);
 			return button;
@@ -855,6 +931,137 @@ public class ExtractionDialog
 ////////////////////////////////////////////////////////////////////////
 
 
+	// CLASS: DIRECTORY
+
+
+	private static class Directory
+		implements IPersistable, Cloneable
+	{
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance variables
+	////////////////////////////////////////////////////////////////////
+
+		private	String	pathname;
+		private	boolean	persistent;
+
+	////////////////////////////////////////////////////////////////////
+	//  Constructors
+	////////////////////////////////////////////////////////////////////
+
+		private Directory(
+			String	pathname,
+			boolean	persistent)
+		{
+			// Initialise instance variables
+			this.pathname = pathname;
+			this.persistent = persistent;
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance methods : IPersistable interface
+	////////////////////////////////////////////////////////////////////
+
+		/**
+		 * {@inheritDoc}
+		 */
+
+		@Override
+		public String getText(
+			int	index)
+		{
+			return switch (index)
+			{
+				case 0  -> pathname;
+				default -> throw new UnexpectedRuntimeException();
+			};
+		}
+
+		//--------------------------------------------------------------
+
+		/**
+		 * {@inheritDoc}
+		 */
+
+		@Override
+		public boolean isPersistent()
+		{
+			return persistent;
+		}
+
+		//--------------------------------------------------------------
+
+		/**
+		 * {@inheritDoc}
+		 */
+
+		@Override
+		public void setPersistent(
+			boolean	persistent)
+		{
+			this.persistent = persistent;
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance methods : overriding methods
+	////////////////////////////////////////////////////////////////////
+
+		/**
+		 * {@inheritDoc}
+		 */
+
+		@Override
+		public boolean equals(
+			Object	obj)
+		{
+			if (this == obj)
+				return true;
+
+			return (obj instanceof Directory other) && Objects.equals(pathname, other.pathname);
+		}
+
+		//--------------------------------------------------------------
+
+		/**
+		 * {@inheritDoc}
+		 */
+
+		@Override
+		public int hashCode()
+		{
+			return Objects.hashCode(pathname);
+		}
+
+		//--------------------------------------------------------------
+
+		/**
+		 * {@inheritDoc}
+		 */
+
+		@Override
+		public Directory clone()
+		{
+			try
+			{
+				return (Directory)super.clone();
+			}
+			catch (CloneNotSupportedException e)
+			{
+				throw new UnexpectedRuntimeException(e);
+			}
+		}
+
+		//--------------------------------------------------------------
+
+	}
+
+	//==================================================================
+
+
 	// CLASS: STATE
 
 
@@ -879,7 +1086,7 @@ public class ExtractionDialog
 
 		private DirectoryKind	directoryKind;
 		private	String			directory;
-		private List<String>	directories;
+		private List<Directory>	directories;
 		private int				directoryIndex;
 		private	boolean			flatten;
 
@@ -928,16 +1135,26 @@ public class ExtractionDialog
 			MapNode rootNode = super.encodeTree();
 
 			// Encode directories and directory index
-			if (!directories.isEmpty())
+			if (directories.stream().anyMatch(directory -> directory.persistent))
 			{
 				// Encode directories
 				ListNode directoriesNode = rootNode.addList(PropertyKey.DIRECTORIES);
-				for (String directory : directories)
-					directoriesNode.addString(directory.replace(File.separatorChar, '/'));
+				int index = -1;
+				int numDirectories = directories.size();
+				for (int i = 0; i < numDirectories; i++)
+				{
+					Directory directory = directories.get(i);
+					if (directory.persistent)
+					{
+						if (i == directoryIndex)
+							index = directoriesNode.getNumElements();
+						directoriesNode.addString(directory.pathname);
+					}
+				}
 
 				// Encode directory index
-				if (directoryIndex >= 0)
-					rootNode.addInt(PropertyKey.DIRECTORY_INDEX, directoryIndex);
+				if (index >= 0)
+					rootNode.addInt(PropertyKey.DIRECTORY_INDEX, index);
 			}
 
 			// Return root node
@@ -963,7 +1180,7 @@ public class ExtractionDialog
 			{
 				directories.clear();
 				for (StringNode node : rootNode.getListNode(key).stringNodes())
-					directories.add(node.getValue().replace('/', File.separatorChar));
+					directories.add(new Directory(node.getValue().replace('/', File.separatorChar), true));
 			}
 
 			// Decode directory index
@@ -996,46 +1213,49 @@ public class ExtractionDialog
 	//==================================================================
 
 
-	// CLASS: 'EDIT DIRECTORIES' DIALOG
+	// CLASS: DIALOG FOR EDITING A LIST OF DIRECTORIES
 
 
-	private static class EditDirectoriesDialog
-		extends SimpleModalDialog<List<String>>
+	private static class DirectoryListDialog
+		extends SimpleModalDialog<List<Directory>>
 	{
 
 	////////////////////////////////////////////////////////////////////
 	//  Constants
 	////////////////////////////////////////////////////////////////////
 
-		private static final	double	LIST_VIEW_WIDTH		= 520.0;
-		private static final	double	LIST_VIEW_HEIGHT	= 240.0;
+		private static final	double	DIRECTORY_COLUMN_WIDTH_FACTOR	= 25.0;
+
+		private static final	double	TABLE_VIEW_HEIGHT	= 240.0;
 
 		private static final	Insets	EDITOR_BUTTON_PANE_PADDING	= new Insets(2.0, 6.0, 2.0, 0.0);
 
 		private static final	Insets	CONTENT_PANE_PADDING	= new Insets(2.0);
 
 		private static final	String	EDIT_NAME	= "directory";
-		private static final	String	EDIT_LABEL	= "Directory";
 
+		private static final	String	DIRECTORY_STR			= "Directory";
 		private static final	String	REMOVE_DIRECTORY_STR	= "Remove directory";
-		private static final	String	REMOVE_QUESTION_STR		= "Directory: %s" + MessageDialog.MESSAGE_SEPARATOR
+		private static final	String	REMOVE_QUESTION_STR		= "Directory: %s" + MessageConstants.LABEL_SEPARATOR
 																	+ "Do you want to remove the selected directory?";
 		private static final	String	REMOVE_STR				= "Remove";
+		private static final	String	SAVE_SELECTED_STR		= "Save selected directories";
+		private static final	String	DONT_SAVE_SELECTED_STR	= "Don't save selected directories";
 
 	////////////////////////////////////////////////////////////////////
 	//  Instance variables
 	////////////////////////////////////////////////////////////////////
 
-		private	List<String>	result;
+		private	List<Directory>	result;
 
 	////////////////////////////////////////////////////////////////////
 	//  Constructors
 	////////////////////////////////////////////////////////////////////
 
-		private EditDirectoriesDialog(
+		private DirectoryListDialog(
 			Window			owner,
 			LocationChooser	directoryChooser,
-			List<String>	directories)
+			List<Directory>	directories)
 		{
 			// Call superclass constructor
 			super(owner, MethodHandles.lookup().lookupClass().getCanonicalName(), EDIT_DIRECTORIES_STR);
@@ -1043,38 +1263,44 @@ public class ExtractionDialog
 			// Set properties
 			setResizable(true);
 
-			// Create list view
-			SimpleTextListView<String> listView =
-					new SimpleTextListView<>(FXCollections.observableArrayList(directories), null);
-			listView.setPrefSize(LIST_VIEW_WIDTH, LIST_VIEW_HEIGHT);
+			// Create column information for table view
+			List<PersistableItemTableView.ColumnInfo> columnInfos = List.of(
+				new PersistableItemTableView.ColumnInfo(DIRECTORY_STR,
+														TextUtils.textHeightCeil(DIRECTORY_COLUMN_WIDTH_FACTOR))
+			);
 
-			// Create list-view editor
+			// Create table view
+			PersistableItemTableView<Directory> tableView = new PersistableItemTableView<>(columnInfos);
+			tableView.setPrefHeight(TABLE_VIEW_HEIGHT);
+			tableView.setItems(directories.stream().map(directory -> directory.clone()).toList());
+			tableView.setMenuItemFactory(save ->
+			{
+				MenuItem menuItem = new MenuItem(save ? SAVE_SELECTED_STR : DONT_SAVE_SELECTED_STR);
+				Stream<Directory> selectedItems = tableView.getSelectionModel().getSelectedItems().stream();
+				menuItem.setDisable(save ? selectedItems.allMatch(item -> item.persistent)
+										 : selectedItems.noneMatch(item -> item.persistent));
+				menuItem.setOnAction(event ->
+				{
+					// Update 'persistent' flag of selected directories
+					for (Directory directory : tableView.getSelectionModel().getSelectedItems())
+						directory.persistent = save;
+
+					// Redraw table view
+					tableView.refresh();
+				});
+				return menuItem;
+			});
+
+			// Create table-view editor
 			Window window = this;
-			ListViewEditor<String> editor = new ListViewEditor<>(listView, new ListViewEditor.IEditor<>()
+			TableViewEditor.IEditor<Directory> editor0 = new TableViewEditor.IEditor<>()
 			{
 				@Override
-				public String edit(
-					ListViewEditor.Action	action,
-					String					pathname)
+				public Directory edit(
+					TableViewEditor.Action	action,
+					Directory				target)
 				{
-					PathnameFieldDialog dialog =
-							new PathnameFieldDialog(window, MethodHandles.lookup().lookupClass().getCanonicalName(),
-													action + " " + EDIT_NAME, EDIT_LABEL, pathname,
-													text -> !listView.getItems().contains(text));
-					TooltipDecorator.addTooltip(dialog.getButton(), CHOOSE_DIRECTORY_STR);
-					dialog.getButton().setOnAction(event ->
-					{
-						// Set initial directory of directory chooser from content of pathname field
-						dialog.getPathnameField().initChooser(directoryChooser, DEFAULT_DIRECTORY);
-
-						// Display directory-selection dialog
-						Path directory = directoryChooser.showSelectDialog(window);
-
-						// Update pathname field
-						if (directory != null)
-							dialog.getPathnameField().setLocation(directory);
-					});
-					return dialog.showDialog();
+					return new DirectoryDialog(window, action + " " + EDIT_NAME, directoryChooser, target).showDialog();
 				}
 
 				@Override
@@ -1091,13 +1317,20 @@ public class ExtractionDialog
 
 				@Override
 				public boolean confirmRemove(
-					String	pathname)
+					Directory	directory)
 				{
 					return ConfirmationDialog.show(window, REMOVE_DIRECTORY_STR, MessageIcon32.QUESTION.get(),
-												   String.format(REMOVE_QUESTION_STR, pathname), REMOVE_STR);
+												   String.format(REMOVE_QUESTION_STR, directory.pathname), REMOVE_STR);
 				}
-			},
-			false);
+			};
+			TableViewEditor<Directory> editor = new TableViewEditor<>(tableView, editor0, false)
+			{
+				@Override
+				public List<Directory> getItems()
+				{
+					return tableView.getItemList();
+				}
+			};
 			editor.getButtonPane().setPadding(EDITOR_BUTTON_PANE_PADDING);
 
 			// Add list-view editor to content
@@ -1107,17 +1340,17 @@ public class ExtractionDialog
 			getContentPane().setPadding(CONTENT_PANE_PADDING);
 
 			// Create button: OK
-			Button okButton = new Button(OK_STR);
+			Button okButton = Buttons.hNoShrink(OK_STR);
 			okButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 			okButton.setOnAction(event ->
 			{
-				result = listView.getItems();
+				result = tableView.getItems();
 				requestClose();
 			});
 			addButton(okButton, HPos.RIGHT);
 
 			// Create button: cancel
-			Button cancelButton = new Button(CANCEL_STR);
+			Button cancelButton = Buttons.hNoShrink(CANCEL_STR);
 			cancelButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 			cancelButton.setOnAction(event -> requestClose());
 			addButton(cancelButton, HPos.RIGHT);
@@ -1136,7 +1369,154 @@ public class ExtractionDialog
 	////////////////////////////////////////////////////////////////////
 
 		@Override
-		protected List<String> getResult()
+		protected List<Directory> getResult()
+		{
+			return result;
+		}
+
+		//--------------------------------------------------------------
+
+	}
+
+	//==================================================================
+
+
+	// CLASS: DIALOG FOR EDITING A DIRECTORY
+
+
+	private static class DirectoryDialog
+		extends SimpleModalDialog<Directory>
+	{
+
+	////////////////////////////////////////////////////////////////////
+	//  Constants
+	////////////////////////////////////////////////////////////////////
+
+		/** The horizontal gap between adjacent columns of the control pane. */
+		private static final	double	CONTROL_PANE_H_GAP	= 6.0;
+
+		/** The vertical gap between adjacent rows of the control pane. */
+		private static final	double	CONTROL_PANE_V_GAP	= 6.0;
+
+		// Miscellaneous strings
+		private static final	String	DIRECTORY_STR			= "Directory";
+		private static final	String	SAVE_BEYOND_SESSION_STR	= "Save the directory beyond the current session";
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance variables
+	////////////////////////////////////////////////////////////////////
+
+		/** The result of this dialog. */
+		private	Directory	result;
+
+	////////////////////////////////////////////////////////////////////
+	//  Constructors
+	////////////////////////////////////////////////////////////////////
+
+		private DirectoryDialog(
+			Window			owner,
+			String			title,
+			LocationChooser	directoryChooser,
+			Directory		directory)
+		{
+			// Call superclass constructor
+			super(owner, MethodHandles.lookup().lookupClass().getName(), null, title);
+
+			// Create control pane
+			GridPane controlPane = new GridPane();
+			controlPane.setHgap(CONTROL_PANE_H_GAP);
+			controlPane.setVgap(CONTROL_PANE_V_GAP);
+			controlPane.setAlignment(Pos.CENTER);
+
+			// Initialise column constraints
+			ColumnConstraints column = new ColumnConstraints();
+			column.setMinWidth(Region.USE_PREF_SIZE);
+			column.setHalignment(HPos.RIGHT);
+			column.setHgrow(Priority.NEVER);
+			controlPane.getColumnConstraints().add(column);
+
+			column = new ColumnConstraints();
+			column.setHalignment(HPos.LEFT);
+			column.setHgrow(Priority.ALWAYS);
+			controlPane.getColumnConstraints().add(column);
+
+			// Initialise row index
+			int row = 0;
+
+			// Create pathname field: directory
+			PathnameField directoryField =
+					new PathnameField((directory == null) ? null : directory.pathname, DIRECTORY_FIELD_NUM_COLUMNS);
+
+			// Create pathname pane: directory
+			PathnamePane directoryPane = new PathnamePane(directoryField, event ->
+			{
+				// Set initial directory of directory chooser from content of pathname field
+				directoryField.setLocationMatcher(PathnameField.DIRECTORY_MATCHER);
+				directoryField.initChooser(directoryChooser, DEFAULT_DIRECTORY);
+
+				// Display directory-selection dialog
+				Path dir = directoryChooser.showSelectDialog(this);
+
+				// Update directory field
+				if (dir != null)
+					directoryField.setLocation(dir);
+			});
+			TooltipDecorator.addTooltip(directoryPane.getButton(), CHOOSE_DIRECTORY_STR);
+			controlPane.addRow(row++, new Label(DIRECTORY_STR), directoryPane);
+
+			// Create check box: persistent
+			CheckBox persistentCheckBox = new CheckBox(SAVE_BEYOND_SESSION_STR);
+			persistentCheckBox.setSelected((directory != null) && directory.persistent);
+			GridPane.setMargin(persistentCheckBox, new Insets(2.0, 0.0, 2.0, 0.0));
+			controlPane.add(persistentCheckBox, 1, row);
+
+			// Add control pane to content pane
+			addContent(controlPane);
+
+			// Create button: OK
+			Button okButton = Buttons.hNoShrink(OK_STR);
+			okButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
+			okButton.setOnAction(event ->
+			{
+				result = new Directory(directoryField.getText(), persistentCheckBox.isSelected());
+				requestClose();
+			});
+			addButton(okButton, HPos.RIGHT);
+
+			// Create procedure to update 'OK' button
+			IProcedure0 updateOkButton = () ->
+					okButton.setDisable(StringUtils.isNullOrBlank(directoryField.getText()));
+
+			// Update 'OK' button when directory changes
+			directoryField.textProperty().addListener(observable -> updateOkButton.invoke());
+
+			// Fire 'OK' button if Enter is pressed in directory field
+			directoryField.setOnAction(event -> okButton.fire());
+
+			// Update 'OK' button
+			updateOkButton.invoke();
+
+			// Create button: cancel
+			Button cancelButton = Buttons.hNoShrink(CANCEL_STR);
+			cancelButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
+			cancelButton.setOnAction(event -> requestClose());
+			addButton(cancelButton, HPos.RIGHT);
+
+			// Fire 'cancel' button if Escape key is pressed; fire 'OK' button if Ctrl+Enter is pressed
+			setKeyFireButton(cancelButton, okButton);
+
+			// Apply style sheet to scene
+			applyStyleSheet();
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance methods : overriding methods
+	////////////////////////////////////////////////////////////////////
+
+		@Override
+		protected Directory getResult()
 		{
 			return result;
 		}

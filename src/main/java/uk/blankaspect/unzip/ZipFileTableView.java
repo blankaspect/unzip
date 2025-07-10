@@ -98,6 +98,7 @@ import uk.blankaspect.common.exception2.LocationException;
 
 import uk.blankaspect.common.function.IFunction0;
 import uk.blankaspect.common.function.IFunction1;
+import uk.blankaspect.common.function.IFunction2;
 import uk.blankaspect.common.function.IProcedure0;
 
 import uk.blankaspect.common.geometry.VHPos;
@@ -108,7 +109,11 @@ import uk.blankaspect.common.string.StringUtils;
 
 import uk.blankaspect.common.text.Tabulator;
 
+import uk.blankaspect.ui.jfx.button.Buttons;
+
 import uk.blankaspect.ui.jfx.clipboard.ClipboardUtils;
+
+import uk.blankaspect.ui.jfx.colour.ColourUtils;
 
 import uk.blankaspect.ui.jfx.container.LabelTitledPane;
 import uk.blankaspect.ui.jfx.container.PropertiesPane;
@@ -117,9 +122,10 @@ import uk.blankaspect.ui.jfx.dialog.ErrorDialog;
 import uk.blankaspect.ui.jfx.dialog.SimpleModalDialog;
 
 import uk.blankaspect.ui.jfx.font.Fonts;
-import uk.blankaspect.ui.jfx.font.FontUtils;
 
 import uk.blankaspect.ui.jfx.image.HatchedImageFactory;
+
+import uk.blankaspect.ui.jfx.label.Labels;
 
 import uk.blankaspect.ui.jfx.math.FxGeomUtils;
 
@@ -182,7 +188,7 @@ public class ZipFileTableView
 
 	/** The factor by which the size of the default font is multiplied to give the size of the font of the placeholder
 		label. */
-	private static final	double	PLACEHOLDER_LABEL_FONT_FACTOR	= 1.25;
+	private static final	double	PLACEHOLDER_LABEL_FONT_SIZE_FACTOR	= 1.25;
 
 	/** The maximum initial width of the properties dialog. */
 	private static final	double	PROPERTIES_DIALOG_MAX_INITIAL_WIDTH	= 960.0;
@@ -214,29 +220,38 @@ public class ZipFileTableView
 			FxProperty.BORDER_COLOUR,
 			ColourKey.HEADER_CELL_BORDER,
 			CssSelector.builder()
-						.cls(StyleClass.TABLE_VIEW)
-						.desc(FxStyleClass.COLUMN_HEADER)
-						.build(),
+					.cls(StyleClass.ZIP_FILE_TABLE_VIEW)
+					.desc(FxStyleClass.COLUMN_HEADER)
+					.build(),
 			CssSelector.builder()
-						.cls(StyleClass.TABLE_VIEW)
-						.desc(FxStyleClass.FILLER)
-						.build()
+					.cls(StyleClass.ZIP_FILE_TABLE_VIEW)
+					.desc(FxStyleClass.FILLER)
+					.build()
+		),
+		ColourProperty.of
+		(
+			FxProperty.BACKGROUND_COLOUR,
+			TableViewStyle.ColourKey.CELL_BACKGROUND_EMPTY,
+			CssSelector.builder()
+					.cls(StyleClass.ZIP_FILE_TABLE_VIEW)
+					.desc(StyleClass.PLACEHOLDER_LABEL)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.TEXT_FILL,
 			ColourKey.PLACEHOLDER_TEXT,
 			CssSelector.builder()
-						.cls(StyleClass.TABLE_VIEW)
-						.desc(StyleClass.PLACEHOLDER_LABEL)
-						.build()
+					.cls(StyleClass.ZIP_FILE_TABLE_VIEW)
+					.desc(StyleClass.PLACEHOLDER_LABEL)
+					.build()
 		)
 	);
 
 	/** CSS style classes. */
 	private interface StyleClass
 	{
-		String	TABLE_VIEW			= StyleConstants.CLASS_PREFIX + "unzip-zip-file-table-view";
+		String	ZIP_FILE_TABLE_VIEW	= StyleConstants.APP_CLASS_PREFIX + "zip-file-table-view";
 
 		String	PLACEHOLDER_LABEL	= StyleConstants.CLASS_PREFIX + "placeholder-label";
 		String	CRC_CELL			= StyleConstants.CLASS_PREFIX + "crc-cell";
@@ -253,17 +268,19 @@ public class ZipFileTableView
 	{
 		String	PREFIX	= StyleManager.colourKeyPrefix(MethodHandles.lookup().lookupClass().getEnclosingClass());
 
-		String	HEADER_CELL_BACKGROUND			= PREFIX + "header.cell.background";
-		String	HEADER_CELL_BACKGROUND_FILTERED	= PREFIX + "header.cell.background.filtered";
-		String	HEADER_CELL_BORDER				= PREFIX + "header.cell.border";
-		String	PLACEHOLDER_TEXT				= PREFIX + "placeholder.text";
+		String	HEADER_CELL_BACKGROUND1				= PREFIX + "header.cell.background1";
+		String	HEADER_CELL_BACKGROUND2				= PREFIX + "header.cell.background2";
+		String	HEADER_CELL_BACKGROUND1_FILTERED	= PREFIX + "header.cell.background1.filtered";
+		String	HEADER_CELL_BACKGROUND2_FILTERED	= PREFIX + "header.cell.background2.filtered";
+		String	HEADER_CELL_BORDER					= PREFIX + "header.cell.border";
+		String	PLACEHOLDER_TEXT					= PREFIX + "placeholder.text";
 	}
 
 	/** Keys of images that are used in CSS rule sets. */
 	private interface ImageKey
 	{
-		String	HEADER_CELL_BACKGROUND			= ColourKey.HEADER_CELL_BACKGROUND;
-		String	HEADER_CELL_BACKGROUND_FILTERED	= ColourKey.HEADER_CELL_BACKGROUND_FILTERED;
+		String	HEADER_CELL_BACKGROUND			= ColourKey.HEADER_CELL_BACKGROUND1;
+		String	HEADER_CELL_BACKGROUND_FILTERED	= ColourKey.HEADER_CELL_BACKGROUND1_FILTERED;
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -326,7 +343,7 @@ public class ZipFileTableView
 
 		// Set properties
 		getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-		getStyleClass().addAll(StyleClass.TABLE_VIEW, TableViewStyle.StyleClass.TABLE_VIEW);
+		getStyleClass().addAll(StyleClass.ZIP_FILE_TABLE_VIEW, TableViewStyle.StyleClass.TABLE_VIEW);
 
 		// Create procedure to create rule sets
 		IFunction0<List<CssRuleSet>> createRuleSets = () ->
@@ -335,18 +352,19 @@ public class ZipFileTableView
 			try
 			{
 				// Create function to create hatched image
-				IFunction1<Image, String> createImage = colourKey ->
+				IFunction2<Image, String, String> createImage = (colour1Key, colour2Key) ->
 				{
 					return HatchedImageFactory.diagonal(HEADER_IMAGE_WIDTH, HEADER_IMAGE_HEIGHT, HEADER_IMAGE_SPACING,
-														getColour(colourKey),
-														StyleManager.INSTANCE.getTheme().getBrightnessDelta1());
+														getColour(colour1Key), getColour(colour2Key));
 				};
 
 				// Create hatched images and add them to data-scheme URI map
 				DataUriImageMap.INSTANCE.put(ImageKey.HEADER_CELL_BACKGROUND,
-											 createImage.invoke(ColourKey.HEADER_CELL_BACKGROUND));
+											 createImage.invoke(ColourKey.HEADER_CELL_BACKGROUND1,
+																ColourKey.HEADER_CELL_BACKGROUND2));
 				DataUriImageMap.INSTANCE.put(ImageKey.HEADER_CELL_BACKGROUND_FILTERED,
-											 createImage.invoke(ColourKey.HEADER_CELL_BACKGROUND_FILTERED));
+											 createImage.invoke(ColourKey.HEADER_CELL_BACKGROUND1_FILTERED,
+																ColourKey.HEADER_CELL_BACKGROUND2_FILTERED));
 			}
 			catch (BaseException e)
 			{
@@ -357,49 +375,49 @@ public class ZipFileTableView
 			return List.of
 			(
 				RuleSetBuilder.create()
-								.selector(CssSelector.builder()
-											.cls(StyleClass.TABLE_VIEW)
-											.desc(FxStyleClass.COLUMN_HEADER)
-											.build())
-								.selector(CssSelector.builder()
-											.cls(StyleClass.TABLE_VIEW)
-											.desc(FxStyleClass.FILLER)
-											.build())
-								.repeatingImageBackground(ImageKey.HEADER_CELL_BACKGROUND)
-								.build(),
+						.selector(CssSelector.builder()
+								.cls(StyleClass.ZIP_FILE_TABLE_VIEW)
+								.desc(FxStyleClass.COLUMN_HEADER)
+								.build())
+						.selector(CssSelector.builder()
+								.cls(StyleClass.ZIP_FILE_TABLE_VIEW)
+								.desc(FxStyleClass.FILLER)
+								.build())
+						.repeatingImageBackground(ImageKey.HEADER_CELL_BACKGROUND)
+						.build(),
 				RuleSetBuilder.create()
-								.selector(CssSelector.builder()
-											.cls(StyleClass.TABLE_VIEW)
-											.desc(FxStyleClass.COLUMN_HEADER).pseudo(PseudoClassKey.FILTERED)
-											.build())
-								.selector(CssSelector.builder()
-											.cls(StyleClass.TABLE_VIEW)
-											.desc(FxStyleClass.FILLER).pseudo(PseudoClassKey.FILTERED)
-											.build())
-								.repeatingImageBackground(ImageKey.HEADER_CELL_BACKGROUND_FILTERED)
-								.build(),
+						.selector(CssSelector.builder()
+								.cls(StyleClass.ZIP_FILE_TABLE_VIEW)
+								.desc(FxStyleClass.COLUMN_HEADER).pseudo(PseudoClassKey.FILTERED)
+								.build())
+						.selector(CssSelector.builder()
+								.cls(StyleClass.ZIP_FILE_TABLE_VIEW)
+								.desc(FxStyleClass.FILLER).pseudo(PseudoClassKey.FILTERED)
+								.build())
+						.repeatingImageBackground(ImageKey.HEADER_CELL_BACKGROUND_FILTERED)
+						.build(),
 				RuleSetBuilder.create()
-								.selector(CssSelector.builder()
-											.cls(StyleClass.TABLE_VIEW)
-											.desc(FxStyleClass.COLUMN_HEADER)
-											.build())
-								.borders(Side.RIGHT, Side.BOTTOM)
-								.build(),
+						.selector(CssSelector.builder()
+								.cls(StyleClass.ZIP_FILE_TABLE_VIEW)
+								.desc(FxStyleClass.COLUMN_HEADER)
+								.build())
+						.borders(Side.RIGHT, Side.BOTTOM)
+						.build(),
 				RuleSetBuilder.create()
-								.selector(CssSelector.builder()
-											.cls(StyleClass.TABLE_VIEW)
-											.desc(FxStyleClass.FILLER)
-											.build())
-								.borders(Side.BOTTOM)
-								.build(),
+						.selector(CssSelector.builder()
+								.cls(StyleClass.ZIP_FILE_TABLE_VIEW)
+								.desc(FxStyleClass.FILLER)
+								.build())
+						.borders(Side.BOTTOM)
+						.build(),
 				RuleSetBuilder.create()
-								.selector(CssSelector.builder()
-											.cls(StyleClass.TABLE_VIEW)
-											.desc(StyleClass.CRC_CELL)
-											.desc(FxStyleClass.TEXT)
-											.build())
-								.grayFontSmoothing()
-								.build()
+						.selector(CssSelector.builder()
+								.cls(StyleClass.ZIP_FILE_TABLE_VIEW)
+								.desc(StyleClass.CRC_CELL)
+								.desc(FxStyleClass.TEXT)
+								.build())
+						.grayFontSmoothing()
+						.build()
 			);
 		};
 
@@ -447,9 +465,9 @@ public class ZipFileTableView
 		}
 
 		// Set placeholder
-		Label placeholderLabel = new Label(NO_ENTRIES_STR);
-		placeholderLabel.setFont(FontUtils.defaultFont(PLACEHOLDER_LABEL_FONT_FACTOR));
-		placeholderLabel.setTextFill(getColour(ColourKey.PLACEHOLDER_TEXT));
+		Label placeholderLabel = Labels.expansive(NO_ENTRIES_STR, PLACEHOLDER_LABEL_FONT_SIZE_FACTOR,
+												  getColour(ColourKey.PLACEHOLDER_TEXT),
+												  getColour(TableViewStyle.ColourKey.CELL_BACKGROUND_EMPTY));
 		placeholderLabel.getStyleClass().add(StyleClass.PLACEHOLDER_LABEL);
 		setPlaceholder(placeholderLabel);
 
@@ -474,7 +492,7 @@ public class ZipFileTableView
 		}
 
 		// Ensure cells are redrawn if scroll bar is hidden
-		widthProperty().addListener(observable -> Platform.runLater(() -> refresh()));
+		widthProperty().addListener(observable -> Platform.runLater(this::refresh));
 
 		// Edit selected file if Ctrl+Enter is pressed when a single item is selected
 		addEventHandler(KeyEvent.KEY_PRESSED, event ->
@@ -540,12 +558,12 @@ public class ZipFileTableView
 ////////////////////////////////////////////////////////////////////////
 
 	/**
-	 * Returns the colour that is associated with the specified key in the colour map of the selected theme of the
+	 * Returns the colour that is associated with the specified key in the colour map of the current theme of the
 	 * {@linkplain StyleManager style manager}.
 	 *
 	 * @param  key
 	 *           the key of the desired colour.
-	 * @return the colour that is associated with {@code key} in the colour map of the selected theme of the style
+	 * @return the colour that is associated with {@code key} in the colour map of the current theme of the style
 	 *         manager, or {@link StyleManager#DEFAULT_COLOUR} if there is no such colour.
 	 */
 
@@ -567,10 +585,16 @@ public class ZipFileTableView
 		// Call superclass method
 		super.layoutChildren();
 
+		// Create function to create background colour
+		IFunction2<Color, String, String> createColour = (colour1Key, colour2Key) ->
+				ColourUtils.interpolateRgb(getColour(colour1Key), getColour(colour2Key), 0.5);
+
 		// Get colours of background and border of column headers
 		boolean filtered = (itemList.getFilter() != null);
-		Color backgroundColour = filtered ? getColour(ColourKey.HEADER_CELL_BACKGROUND_FILTERED)
-										  : getColour(ColourKey.HEADER_CELL_BACKGROUND);
+		Color backgroundColour = filtered ? createColour.invoke(ColourKey.HEADER_CELL_BACKGROUND1_FILTERED,
+																ColourKey.HEADER_CELL_BACKGROUND2_FILTERED)
+										  : createColour.invoke(ColourKey.HEADER_CELL_BACKGROUND1,
+																ColourKey.HEADER_CELL_BACKGROUND2);
 		Color borderColour = getColour(ColourKey.HEADER_CELL_BORDER);
 
 		// Set background and border of column headers
@@ -588,8 +612,7 @@ public class ZipFileTableView
 		}
 
 		// Set background and border of filler
-		Node node0 = lookup(StyleSelector.FILLER);
-		if (node0 instanceof Region filler)
+		if (lookup(StyleSelector.FILLER) instanceof Region filler)
 		{
 			if (StyleManager.INSTANCE.notUsingStyleSheet())
 			{
@@ -832,7 +855,8 @@ public class ZipFileTableView
 				if (result.includeHeader)
 				{
 					int index = outText.indexOf('\n') + 1;
-					outText = outText.substring(0, index) + "-".repeat(table.maxLineLength()) + "\n" + outText.substring(index);
+					outText = outText.substring(0, index) + "-".repeat(table.maxLineLength()) + "\n"
+								+ outText.substring(index);
 				}
 				break;
 			}
@@ -913,7 +937,7 @@ public class ZipFileTableView
 			null,
 			"Parent directory",
 			HPos.LEFT,
-			TextUtils.textWidth("M".repeat(32))
+			TextUtils.textHeightCeil(20.0)
 		)
 		{
 			@Override
@@ -946,7 +970,7 @@ public class ZipFileTableView
 			null,
 			null,
 			HPos.LEFT,
-			TextUtils.textWidth("M".repeat(24))
+			TextUtils.textHeightCeil(15.0)
 		)
 		{
 			@Override
@@ -1032,7 +1056,7 @@ public class ZipFileTableView
 				column.setCellValueFactory(features ->
 				{
 					long size = features.getValue().getSize();
-					return new ReadOnlyObjectWrapper<>((size < 0) ? null : size);
+					return new ReadOnlyObjectWrapper<>((size < 0) ? null : Long.valueOf(size));
 				});
 				return column;
 			}
@@ -1068,7 +1092,7 @@ public class ZipFileTableView
 				column.setCellValueFactory(features ->
 				{
 					long size = features.getValue().getCompressedSize();
-					return new ReadOnlyObjectWrapper<>((size < 0) ? null : size);
+					return new ReadOnlyObjectWrapper<>((size < 0) ? null : Long.valueOf(size));
 				});
 				return column;
 			}
@@ -1104,7 +1128,7 @@ public class ZipFileTableView
 				column.setCellValueFactory(features ->
 				{
 					long crc = features.getValue().getCrc();
-					return new ReadOnlyObjectWrapper<>((crc < 0) ? null : crc);
+					return new ReadOnlyObjectWrapper<>((crc < 0) ? null : Long.valueOf(crc));
 				});
 				return column;
 			}
@@ -1131,14 +1155,14 @@ public class ZipFileTableView
 			String	longText,
 			String	tooltipText,
 			HPos	hAlignment,
-			double	prefWidth)
+			double	textWidth)
 		{
 			// Initialise instance variables
 			this.text = text;
 			this.longText = (longText == null) ? text : longText;
 			this.tooltipText = (tooltipText == null) ? text : tooltipText;
 			this.hAlignment = hAlignment;
-			this.prefWidth = Math.ceil(prefWidth + 2.0 * Cell.LABEL_H_PADDING + 1.0);
+			prefWidth = Math.ceil(textWidth + 2.0 * Cell.LABEL_H_PADDING + 1.0);
 		}
 
 		//--------------------------------------------------------------
@@ -1159,9 +1183,9 @@ public class ZipFileTableView
 			String	key)
 		{
 			return Stream.of(values())
-							.filter(value -> value.getKey().equals(key))
-							.findFirst()
-							.orElse(null);
+					.filter(value -> value.getKey().equals(key))
+					.findFirst()
+					.orElse(null);
 		}
 
 		//--------------------------------------------------------------
@@ -1267,7 +1291,11 @@ public class ZipFileTableView
 			});
 
 			// When mouse leaves cell, deactivate any cell pop-up
-			addEventHandler(MouseEvent.MOUSE_EXITED, event -> cellPopUpManager.deactivate());
+			addEventHandler(MouseEvent.MOUSE_EXITED, event ->
+			{
+				if (CellPopUpManager.deactivatePopUpOnMouseExited())
+					cellPopUpManager.deactivate();
+			});
 
 			// When a mouse button is released, deactivate any cell pop-up
 			addEventFilter(MouseEvent.MOUSE_RELEASED, event ->
@@ -1687,7 +1715,7 @@ public class ZipFileTableView
 
 			// Create pane: columns
 			VBox columnsPane = new VBox(COLUMNS_PANE_GAP);
-			columnsPane.setMaxWidth(VBox.USE_PREF_SIZE);
+			columnsPane.setMaxWidth(Region.USE_PREF_SIZE);
 			columnsPane.setPadding(COLUMNS_PANE_PADDING);
 
 			// Create check boxes for columns
@@ -1730,17 +1758,17 @@ public class ZipFileTableView
 			rowsPane.setPadding(ROWS_PANE_PADDING);
 
 			// Initialise column constraints
-			ColumnConstraints column1 = new ColumnConstraints();
-			column1.setMinWidth(GridPane.USE_PREF_SIZE);
-			column1.setHalignment(HPos.RIGHT);
-			column1.setHgrow(Priority.NEVER);
-			rowsPane.getColumnConstraints().add(column1);
+			ColumnConstraints column = new ColumnConstraints();
+			column.setMinWidth(Region.USE_PREF_SIZE);
+			column.setHalignment(HPos.RIGHT);
+			column.setHgrow(Priority.NEVER);
+			rowsPane.getColumnConstraints().add(column);
 
-			ColumnConstraints column2 = new ColumnConstraints();
-			column2.setHalignment(HPos.LEFT);
-			column2.setHgrow(Priority.NEVER);
-			column2.setFillWidth(false);
-			rowsPane.getColumnConstraints().add(column2);
+			column = new ColumnConstraints();
+			column.setHalignment(HPos.LEFT);
+			column.setHgrow(Priority.NEVER);
+			column.setFillWidth(false);
+			rowsPane.getColumnConstraints().add(column);
 
 			// Initialise row index
 			int row = 0;
@@ -1753,7 +1781,8 @@ public class ZipFileTableView
 
 			// Create spinner: field separator
 			CollectionSpinner<FieldSeparator> fieldSeparatorSpinner =
-					CollectionSpinner.leftRightH(HPos.CENTER, true, FieldSeparator.class, state.fieldSeparator, null, null);
+					CollectionSpinner.leftRightH(HPos.CENTER, true, FieldSeparator.class, state.fieldSeparator, null,
+												 null);
 			rowsPane.addRow(row++, new Label(FIELD_SEPARATOR_STR), fieldSeparatorSpinner);
 
 			// Create titled pane: rows
@@ -1774,7 +1803,7 @@ public class ZipFileTableView
 							  includeHeaderCheckBox.isSelected(), fieldSeparatorSpinner.getItem());
 
 			// Create button: copy
-			Button copyButton = new Button(COPY_STR);
+			Button copyButton = Buttons.hNoShrink(COPY_STR);
 			copyButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 			copyButton.setOnAction(event ->
 			{
@@ -1793,7 +1822,7 @@ public class ZipFileTableView
 			updateCopyButton.invoke();
 
 			// Create button: cancel
-			Button cancelButton = new Button(CANCEL_STR);
+			Button cancelButton = Buttons.hNoShrink(CANCEL_STR);
 			cancelButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 			cancelButton.setOnAction(event -> requestClose());
 			addButton(cancelButton, HPos.RIGHT);

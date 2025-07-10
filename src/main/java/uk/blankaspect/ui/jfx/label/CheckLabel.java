@@ -99,27 +99,27 @@ public class CheckLabel
 			FxProperty.STROKE,
 			ColourKey.TICK_BOX,
 			CssSelector.builder()
-						.cls(StyleClass.CHECK_LABEL)
-						.desc(StyleClass.TICK_BOX)
-						.build()
+					.cls(StyleClass.CHECK_LABEL)
+					.desc(StyleClass.TICK_BOX)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.STROKE,
 			Color.TRANSPARENT,
 			CssSelector.builder()
-						.cls(StyleClass.CHECK_LABEL)
-						.desc(StyleClass.TICK)
-						.build()
+					.cls(StyleClass.CHECK_LABEL)
+					.desc(StyleClass.TICK)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.STROKE,
 			ColourKey.TICK,
 			CssSelector.builder()
-						.cls(StyleClass.CHECK_LABEL).pseudo(FxPseudoClass.SELECTED)
-						.desc(StyleClass.TICK)
-						.build()
+					.cls(StyleClass.CHECK_LABEL).pseudo(FxPseudoClass.SELECTED)
+					.desc(StyleClass.TICK)
+					.build()
 		)
 	);
 
@@ -129,16 +129,16 @@ public class CheckLabel
 		RuleSetFactory.doubleSolidBorder
 		(
 			CssSelector.builder()
-						.cls(StyleClass.CHECK_LABEL)
-						.build(),
+					.cls(StyleClass.CHECK_LABEL)
+					.build(),
 			Color.TRANSPARENT,
 			ColourKey.BORDER
 		),
 		RuleSetFactory.outerFocusBorder
 		(
 			CssSelector.builder()
-						.cls(StyleClass.CHECK_LABEL).pseudo(FxPseudoClass.FOCUSED)
-						.build(),
+					.cls(StyleClass.CHECK_LABEL).pseudo(FxPseudoClass.FOCUSED)
+					.build(),
 			ColourKey.BORDER
 		)
 	);
@@ -318,12 +318,12 @@ public class CheckLabel
 ////////////////////////////////////////////////////////////////////////
 
 	/**
-	 * Returns the colour that is associated with the specified key in the colour map of the selected theme of the
+	 * Returns the colour that is associated with the specified key in the colour map of the current theme of the
 	 * {@linkplain StyleManager style manager}.
 	 *
 	 * @param  key
 	 *           the key of the desired colour.
-	 * @return the colour that is associated with {@code key} in the colour map of the selected theme of the style
+	 * @return the colour that is associated with {@code key} in the colour map of the current theme of the style
 	 *         manager, or {@link StyleManager#DEFAULT_COLOUR} if there is no such colour.
 	 */
 

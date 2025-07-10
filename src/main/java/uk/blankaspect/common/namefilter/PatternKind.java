@@ -137,9 +137,9 @@ public enum PatternKind
 		String	key)
 	{
 		return Stream.of(values())
-						.filter(value -> value.key.equals(key))
-						.findFirst()
-						.orElse(null);
+				.filter(value -> value.key.equals(key))
+				.findFirst()
+				.orElse(null);
 	}
 
 	//------------------------------------------------------------------
@@ -149,16 +149,16 @@ public enum PatternKind
 	 *
 	 * @param  key
 	 *           the short key whose associated kind of pattern is desired.
-	 * @return the kind of pattern that is associated with {@code key}, or {@code null} if there is no such value.
+	 * @return the kind of pattern that is associated with {@code key}, or {@code null} if there is no such kind.
 	 */
 
 	public static PatternKind forShortKey(
 		char	key)
 	{
 		return Stream.of(values())
-						.filter(value -> value.getShortKey() == key)
-						.findFirst()
-						.orElse(null);
+				.filter(value -> value.getShortKey() == key)
+				.findFirst()
+				.orElse(null);
 	}
 
 	//------------------------------------------------------------------

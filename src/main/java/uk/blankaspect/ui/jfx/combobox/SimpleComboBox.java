@@ -58,6 +58,7 @@ import javafx.scene.input.MouseButton;
 
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 
 import javafx.scene.paint.Color;
@@ -110,22 +111,76 @@ public class SimpleComboBox<T>
 	 * toString(Object)} and {@link StringConverter#fromString(String) fromString(String)} methods return their argument
 	 * unchanged.
 	 */
-	public static final		StringConverter<String>	IDENTITY_STRING_CONVERTER	= new StringConverter<>()
+	public static final		IConverter<String>	IDENTITY_STRING_CONVERTER	= new IConverter<>()
 	{
 		@Override
-		public String toString(
-			String	object)
+		public String toText(
+			String	item)
 		{
-			return object;
+			return item;
 		}
 
 		@Override
-		public String fromString(
-			String	string)
+		public String fromText(
+			String	text)
 		{
-			return string;
+			return text;
 		}
 	};
+
+	/**
+	 * The ways in which the value of an item or the textual representation of an item in the list of items can be
+	 * matched against an appropriate target.
+	 */
+	public enum ListMatch
+	{
+		/**
+		 * The textual representation of an item is matched.
+		 */
+		TEXT,
+
+		/**
+		 * The textual representation of an item is matched, ignoring letter case.
+		 */
+		TEXT_IGNORE_CASE,
+
+		/**
+		 * The value of an item is matched for equality.
+		 */
+		VALUE,
+
+		/**
+		 * The value of an item is matched for identity.
+		 */
+		VALUE_IDENTITY
+	}
+
+	/**
+	 * The position at which an item is added to the list of items when it is committed.
+	 */
+	public enum ListAddPos
+	{
+		/**
+		 * An item is not added to the list of items.
+		 */
+		NONE,
+
+		/**
+		 * An item is added to the front of the list of items.
+		 */
+		FRONT,
+
+		/**
+		 * An item is added to the back of the list of items.
+		 */
+		BACK
+	}
+
+	/** The default way in which an item in the list of items is matched against an appropriate target. */
+	private static final	ListMatch	DEFAULT_LIST_MATCH	= ListMatch.VALUE;
+
+	/** The default position at which an item is added to the list of items when it is committed. */
+	private static final	ListAddPos	DEFAULT_LIST_ADD_POSITION	= ListAddPos.NONE;
 
 	/** The opacity of a disabled component. */
 	private static final	double	DISABLED_OPACITY	= 0.4;
@@ -139,7 +194,7 @@ public class SimpleComboBox<T>
 	/** The padding at the top and bottom of a cell of the list view. */
 	private static final	double	LIST_VIEW_CELL_VERTICAL_PADDING	= 3.0;
 
-	/** The height of a <i>tick</i> icon. */
+	/** The logical size of a <i>tick</i> icon. */
 	private static final	double	LIST_VIEW_TICK_ICON_SIZE	= 0.85 * TextUtils.textHeight();
 
 	/** The key combination that causes the list view to be displayed. */
@@ -155,29 +210,20 @@ public class SimpleComboBox<T>
 	(
 		ColourProperty.of
 		(
-			FxProperty.FILL,
-			ColourKey.LIST_BUTTON_ICON,
-			CssSelector.builder()
-						.cls(StyleClass.SIMPLE_COMBO_BOX)
-						.desc(StyleClass.LIST_BUTTON)
-						.build()
-		),
-		ColourProperty.of
-		(
 			FxProperty.BORDER_COLOUR,
 			ColourKey.LIST_BUTTON_PANE_BORDER,
 			CssSelector.builder()
-						.cls(StyleClass.SIMPLE_COMBO_BOX)
-						.desc(StyleClass.LIST_BUTTON_PANE)
-						.build()
+					.cls(StyleClass.SIMPLE_COMBO_BOX)
+					.desc(StyleClass.LIST_BUTTON_PANE)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.STROKE,
 			ColourKey.LIST_VIEW_TICK,
 			CssSelector.builder()
-						.cls(StyleClass.LIST_VIEW_TICK)
-						.build()
+					.cls(StyleClass.LIST_VIEW_TICK)
+					.build()
 		)
 	);
 
@@ -185,20 +231,19 @@ public class SimpleComboBox<T>
 	private static final	List<CssRuleSet>	RULE_SETS	= List.of
 	(
 		RuleSetBuilder.create()
-						.selector(CssSelector.builder()
-									.cls(StyleClass.SIMPLE_COMBO_BOX)
-									.desc(StyleClass.LIST_BUTTON_PANE)
-									.build())
-						.borders(Side.TOP, Side.RIGHT, Side.BOTTOM)
-						.build()
+				.selector(CssSelector.builder()
+						.cls(StyleClass.SIMPLE_COMBO_BOX)
+						.desc(StyleClass.LIST_BUTTON_PANE)
+						.build())
+				.borders(Side.TOP, Side.RIGHT, Side.BOTTOM)
+				.build()
 	);
 
 	/** CSS style classes. */
-	public interface StyleClass
+	private interface StyleClass
 	{
 		String	SIMPLE_COMBO_BOX	= StyleConstants.CLASS_PREFIX + "simple-combo-box";
 
-		String	LIST_BUTTON			= StyleConstants.CLASS_PREFIX + "list-button";
 		String	LIST_BUTTON_PANE	= StyleConstants.CLASS_PREFIX + "list-button-pane";
 		String	LIST_VIEW_TICK		= SIMPLE_COMBO_BOX + "-list-view-tick";
 	}
@@ -217,7 +262,11 @@ public class SimpleComboBox<T>
 //  Instance variables
 ////////////////////////////////////////////////////////////////////////
 
-	private	StringConverter<T>		converter;
+	private	IConverter<T>			converter;
+	private	boolean					commitOnFocusLost;
+	private	boolean					allowNullCommit;
+	private	ListMatch				listMatch;
+	private	ListAddPos				listAddPosition;
 	private	SimpleObjectProperty<T>	value;
 	private	int						valueIndex;
 	private	List<T>					items;
@@ -241,7 +290,7 @@ public class SimpleComboBox<T>
 ////////////////////////////////////////////////////////////////////////
 
 	public SimpleComboBox(
-		StringConverter<T>	converter)
+		IConverter<T>	converter)
 	{
 		// Validate argument
 		if (converter == null)
@@ -249,13 +298,15 @@ public class SimpleComboBox<T>
 
 		// Initialise instance variables
 		this.converter = converter;
+		listMatch = DEFAULT_LIST_MATCH;
+		listAddPosition = DEFAULT_LIST_ADD_POSITION;
 		value = new SimpleObjectProperty<>();
 		valueIndex = -1;
 
 		// Set properties
 		setSpacing(-1.0);
 		setAlignment(Pos.CENTER_LEFT);
-		setMaxWidth(USE_PREF_SIZE);
+		setMaxWidth(Region.USE_PREF_SIZE);
 		getStyleClass().add(StyleClass.SIMPLE_COMBO_BOX);
 
 		// Create text field
@@ -307,8 +358,10 @@ public class SimpleComboBox<T>
 			// Set 'selected' pseudo-class of cell if it is selected or mouse is hovering over it
 			cell.getPseudoClassStates().addListener((InvalidationListener) observable ->
 			{
-				boolean selected = !cell.isEmpty() && (listView.getSelectionModel().getSelectedIndex() == cell.getIndex());
-				boolean hovered = cell.getPseudoClassStates().contains(PseudoClass.getPseudoClass(FxPseudoClass.HOVER));
+				boolean selected =
+						!cell.isEmpty() && (listView.getSelectionModel().getSelectedIndex() == cell.getIndex());
+				boolean hovered =
+						cell.getPseudoClassStates().contains(PseudoClass.getPseudoClass(FxPseudoClass.HOVERED));
 				cell.pseudoClassStateChanged(PseudoClass.getPseudoClass(FxPseudoClass.SELECTED), selected || hovered);
 			});
 
@@ -317,8 +370,8 @@ public class SimpleComboBox<T>
 		});
 		listView.prefWidthProperty().bind(widthProperty().subtract(2.0));
 
-		// Create procedure to update value of combo box
-		IProcedure0 updateValue = () ->
+		// Create procedure to update value of combo box from selection in list view
+		IProcedure0 updateValueFromList = () ->
 		{
 			// Update value and text field if item was selected in list view
 			int index = listView.getSelectionModel().getSelectedIndex();
@@ -326,7 +379,7 @@ public class SimpleComboBox<T>
 			{
 				// Update instance variables
 				valueIndex = index;
-				value.set(items.get(index));
+				value.set(converter.copy(items.get(index)));
 
 				// Update text field
 				setText(listView.getItems().get(index));
@@ -341,7 +394,7 @@ public class SimpleComboBox<T>
 		{
 			// Update value
 			if (event.getCode() == KeyCode.ENTER)
-				updateValue.invoke();
+				updateValueFromList.invoke();
 
 			// Hide pop-up
 			else if (event.getCode() == KeyCode.ESCAPE)
@@ -357,7 +410,7 @@ public class SimpleComboBox<T>
 			if (event.getButton() == MouseButton.PRIMARY)
 			{
 				// Update value
-				updateValue.invoke();
+				updateValueFromList.invoke();
 
 				// Consume event
 				event.consume();
@@ -391,8 +444,16 @@ public class SimpleComboBox<T>
 			// Clear selection in list view
 			listView.getSelectionModel().clearSelection();
 
-			// Redraw cells of list view
-			listView.refresh();
+			// Create list of string representations of items
+			ObservableList<String> strings = FXCollections.observableArrayList();
+			for (T item : items)
+			{
+				String text = converter.toText(item);
+				strings.add((text == null) ? "" : text);
+			}
+
+			// Set string representations of items on list view
+			listView.setItems(strings);
 
 			// Display pop-up
 			Bounds bounds = textField.localToScreen(textField.getLayoutBounds());
@@ -400,15 +461,7 @@ public class SimpleComboBox<T>
 		};
 
 		// Handle action event on text field
-		textField.addEventHandler(ActionEvent.ACTION, event ->
-		{
-			T value = converter.fromString(textField.getText());
-			if (value != null)
-			{
-				valueIndex = items.indexOf(value);
-				this.value.set(value);
-			}
-		});
+		textField.addEventHandler(ActionEvent.ACTION, event -> commitValue());
 
 		// Handle 'key pressed' event on text field
 		textField.addEventHandler(KeyEvent.KEY_PRESSED, event ->
@@ -441,41 +494,51 @@ public class SimpleComboBox<T>
 			}
 		});
 
-		// Create button that triggers list view
-		button = new GraphicButton(new Rectangle());
-		button.getStyleClass().add(StyleClass.LIST_BUTTON);
-		button.setOnAction(event -> showListView.invoke());
-
-		// Create arrowhead icon for button when height of text field is known
-		textField.heightProperty().addListener((observable, oldHeight, height) ->
+		// When text field loses focus, optionally commit value
+		textField.focusedProperty().addListener((observable, oldFocused, focused) ->
 		{
-			double textHeight = TextUtils.textHeight();
-			Shape arrowhead = Shapes.arrowhead01(VHDirection.DOWN, BUTTON_ARROWHEAD_SIZE_FACTOR * textHeight);
-			arrowhead.setFill(getColour(ColourKey.LIST_BUTTON_ICON));
-			button.setGraphic(Shapes.tile(arrowhead, Math.ceil(textHeight), Math.rint(height.doubleValue() - 8.0)));
+			if (oldFocused && !focused)
+			{
+				if (commitOnFocusLost)
+					commitValue();
+				else
+					textField.setText(converter.toText(getValue()));
+			}
 		});
 
-		// Simulate a border around the button
+		// Create arrowhead icon for button that triggers list view
+		double textHeight = TextUtils.textHeight();
+		Shape arrowhead = Shapes.arrowhead01(VHDirection.DOWN, BUTTON_ARROWHEAD_SIZE_FACTOR * textHeight);
+		arrowhead.setFill(getColour(ColourKey.LIST_BUTTON_ICON));
+
+		// Create button that triggers list view
+		button = new GraphicButton(Shapes.tile(arrowhead, Math.ceil(textHeight)));
+		button.setOnAction(event -> showListView.invoke());
+		button.prefHeightProperty().bind(textField.heightProperty());
+
+		// Create pane to provide three-sided border around button
 		StackPane buttonPane = new StackPane(button);
-		buttonPane.setMaxHeight(StackPane.USE_PREF_SIZE);
 		buttonPane.setPadding(new Insets(0.0, 0.0, 0.0, 1.0));
 		buttonPane.setBorder(SceneUtils.createSolidBorder(getColour(ColourKey.LIST_BUTTON_PANE_BORDER),
 														  Side.TOP, Side.RIGHT, Side.BOTTOM));
-		buttonPane.prefHeightProperty().bind(textField.heightProperty());
 		buttonPane.getStyleClass().add(StyleClass.LIST_BUTTON_PANE);
 
 		// Reduce opacity of border around button when combo box is disabled
 		disabledProperty().addListener((observable, oldDisabled, disabled) ->
 				buttonPane.setOpacity(disabled ? DISABLED_OPACITY : 1.0));
 
+		// Create outer pane for button
+		StackPane outerButtonPane = new StackPane(buttonPane, button);
+		outerButtonPane.setMaxHeight(Region.USE_PREF_SIZE);
+
 		// Add children to this component
-		getChildren().addAll(textField, new StackPane(buttonPane, button));
+		getChildren().addAll(textField, outerButtonPane);
 	}
 
 	//------------------------------------------------------------------
 
 	public SimpleComboBox(
-		StringConverter<T>		converter,
+		IConverter<T>			converter,
 		Collection<? extends T>	items)
 	{
 		// Call alternative constructor
@@ -492,12 +555,12 @@ public class SimpleComboBox<T>
 ////////////////////////////////////////////////////////////////////////
 
 	/**
-	 * Returns the colour that is associated with the specified key in the colour map of the selected theme of the
+	 * Returns the colour that is associated with the specified key in the colour map of the current theme of the
 	 * {@linkplain StyleManager style manager}.
 	 *
 	 * @param  key
 	 *           the key of the desired colour.
-	 * @return the colour that is associated with {@code key} in the colour map of the selected theme of the style
+	 * @return the colour that is associated with {@code key} in the colour map of the current theme of the style
 	 *         manager, or {@link StyleManager#DEFAULT_COLOUR} if there is no such colour.
 	 */
 
@@ -536,11 +599,11 @@ public class SimpleComboBox<T>
 		T	value)
 	{
 		// Update instance variables
-		valueIndex = items.indexOf(value);
+		valueIndex = findItemIndex(value);
 		this.value.set(value);
 
 		// Update text field
-		setText(converter.toString(value));
+		setText(converter.toText(value));
 	}
 
 	//------------------------------------------------------------------
@@ -566,6 +629,13 @@ public class SimpleComboBox<T>
 
 	//------------------------------------------------------------------
 
+	public GraphicButton getButton()
+	{
+		return button;
+	}
+
+	//------------------------------------------------------------------
+
 	public String getText()
 	{
 		return textField.getText();
@@ -577,7 +647,7 @@ public class SimpleComboBox<T>
 		String	text)
 	{
 		textField.setText(text);
-		Platform.runLater(() -> textField.end());
+		Platform.runLater(textField::end);
 	}
 
 	//------------------------------------------------------------------
@@ -599,16 +669,50 @@ public class SimpleComboBox<T>
 		// Update instance variable
 		this.items = new ArrayList<>(items);
 
-		// Create list of string representations of items
-		ObservableList<String> strings = FXCollections.observableArrayList();
-		for (T item : items)
-			strings.add(converter.toString(item));
-
-		// Set string representations of items on list view
-		listView.setItems(strings);
-
 		// Clear selection
 		selectIndex(-1);
+	}
+
+	//------------------------------------------------------------------
+
+	public void setCommitOnFocusLost(
+		boolean	commit)
+	{
+		commitOnFocusLost = commit;
+	}
+
+	//------------------------------------------------------------------
+
+	public void setAllowNullCommit(
+		boolean	allow)
+	{
+		allowNullCommit = allow;
+	}
+
+	//------------------------------------------------------------------
+
+	public void setListMatch(
+		ListMatch	match)
+	{
+		// Validate argument
+		if (match == null)
+			throw new IllegalArgumentException("Null match");
+
+		// Update instance variable
+		listMatch = match;
+	}
+
+	//------------------------------------------------------------------
+
+	public void setListAddPos(
+		ListAddPos	position)
+	{
+		// Validate argument
+		if (position == null)
+			throw new IllegalArgumentException("Null position");
+
+		// Update instance variable
+		listAddPosition = position;
 	}
 
 	//------------------------------------------------------------------
@@ -616,15 +720,15 @@ public class SimpleComboBox<T>
 	public void selectIndex(
 		int	index)
 	{
-		// Update selected index of list view
-		listView.getSelectionModel().select(index);
+		// Get value from list
+		T value = (index < 0) ? null : converter.copy(items.get(index));
 
 		// Update instance variables
 		valueIndex = index;
-		value.set((index < 0) ? null : items.get(index));
+		this.value.set(value);
 
 		// Update text field
-		setText((index < 0) ? null : listView.getItems().get(index));
+		setText(converter.toText(value));
 	}
 
 	//------------------------------------------------------------------
@@ -632,10 +736,185 @@ public class SimpleComboBox<T>
 	public void selectItem(
 		T	item)
 	{
-		selectIndex(items.indexOf(item));
+		selectIndex(findItemIndex(item));
 	}
 
 	//------------------------------------------------------------------
+
+	public void commitValue()
+	{
+		// Get content of text field
+		String text = textField.getText();
+
+		// Convert text to value
+		T value = converter.fromText(text);
+
+		// Find index of matching item in list
+		int index = findItemIndex(text, value);
+
+		// Case: value does not match an existing item
+		if (index < 0)
+		{
+			switch (listAddPosition)
+			{
+				case NONE:
+					// do nothing
+					break;
+
+				case FRONT:
+					index = 0;
+					items.add(index, value);
+					break;
+
+				case BACK:
+					index = items.size();
+					items.add(value);
+					break;
+			}
+		}
+
+		// Case: value matches an existing item
+		else
+		{
+			int i = index;
+			index = switch (listAddPosition)
+			{
+				case NONE  -> index;
+				case FRONT -> 0;
+				case BACK  -> items.size();
+			};
+			if (i != index)
+				items.add(index, items.remove(i));
+		}
+
+		// Update index of item in list
+		valueIndex = index;
+
+		// Commit value
+		if (allowNullCommit || (value != null))
+		{
+			// Update instance variables
+			this.value.set((value == null) ? null : converter.copy(value));
+
+			// Fire 'action' event
+			fireEvent(new ActionEvent());
+		}
+	}
+
+	//------------------------------------------------------------------
+
+	private int findItemIndex(
+		T	value)
+	{
+		return findItemIndex(converter.toText(value), value);
+	}
+
+	//------------------------------------------------------------------
+
+	private int findItemIndex(
+		String	text,
+		T		value)
+	{
+		int index = -1;
+		int numItems = items.size();
+		switch (listMatch)
+		{
+			case TEXT:
+				if (text != null)
+				{
+					for (int i = 0; i < numItems; i++)
+					{
+						if (text.equals(converter.toText(items.get(i))))
+						{
+							index = i;
+							break;
+						}
+					}
+				}
+				break;
+
+			case TEXT_IGNORE_CASE:
+				if (text != null)
+				{
+					for (int i = 0; i < numItems; i++)
+					{
+						if (text.equalsIgnoreCase(converter.toText(items.get(i))))
+						{
+							index = i;
+							break;
+						}
+					}
+				}
+				break;
+
+			case VALUE:
+				if (value != null)
+					index = items.indexOf(value);
+				break;
+
+			case VALUE_IDENTITY:
+				if (value != null)
+				{
+					for (int i = 0; i < numItems; i++)
+					{
+						if (value == items.get(i))
+						{
+							index = i;
+							break;
+						}
+					}
+				}
+				break;
+		}
+		return index;
+	}
+
+	//------------------------------------------------------------------
+
+////////////////////////////////////////////////////////////////////////
+//  Member interfaces
+////////////////////////////////////////////////////////////////////////
+
+
+	// INTERFACE: CONVERTER
+
+
+	/**
+	 * This interface defines the methods that are used by a {@link SimpleComboBox} to convert an item to and from text
+	 * and to create a copy of an item.
+	 *
+	 * @param <T>
+	 *          the type of the item.
+	 */
+
+	public interface IConverter<T>
+	{
+
+	////////////////////////////////////////////////////////////////////
+	//  Methods
+	////////////////////////////////////////////////////////////////////
+
+		String toText(
+			T	item);
+
+		//--------------------------------------------------------------
+
+		T fromText(
+			String	text);
+
+		//--------------------------------------------------------------
+
+		default T copy(
+			T	item)
+		{
+			return item;
+		}
+
+		//--------------------------------------------------------------
+
+	}
+
+	//==================================================================
 
 }
 

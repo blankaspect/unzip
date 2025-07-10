@@ -56,9 +56,12 @@ import javafx.scene.control.TableView;
  * </ol>
  * The nesting of the lists allows the unsorted order of items to be restored when the sorting of the columns of a table
  * view is removed.
+ *
+ * @param <E>
+ *          the type of the elements of the list.
  */
 
-public class ElasticFilteredList<T>
+public class ElasticFilteredList<E>
 {
 
 ////////////////////////////////////////////////////////////////////////
@@ -66,13 +69,13 @@ public class ElasticFilteredList<T>
 ////////////////////////////////////////////////////////////////////////
 
 	/** The underlying unfiltered and unsorted list of the items that are represented in the table view. */
-	private	ObservableList<T>	baseList;
+	private	ObservableList<E>	baseList;
 
 	/** The underlying filtered list of the items that are represented in the table view. */
-	private	FilteredList<T>		filteredList;
+	private	FilteredList<E>		filteredList;
 
 	/** The underlying sorted list of the items that are represented in the table view. */
-	private	SortedList<T>		sortedList;
+	private	SortedList<E>		sortedList;
 
 ////////////////////////////////////////////////////////////////////////
 //  Constructors
@@ -86,7 +89,7 @@ public class ElasticFilteredList<T>
 	 */
 
 	public ElasticFilteredList(
-		ListView<T>	listView)
+		ListView<E>	listView)
 	{
 		// Validate arguments
 		if (listView == null)
@@ -111,7 +114,7 @@ public class ElasticFilteredList<T>
 	 */
 
 	public ElasticFilteredList(
-		TableView<T>	tableView)
+		TableView<E>	tableView)
 	{
 		// Validate arguments
 		if (tableView == null)
@@ -149,12 +152,25 @@ public class ElasticFilteredList<T>
 	//------------------------------------------------------------------
 
 	/**
+	 * Returns the unfiltered and unsorted list of items.
+	 *
+	 * @return the unfiltered and unsorted list of items.
+	 */
+
+	public ObservableList<E> getBaseList()
+	{
+		return baseList;
+	}
+
+	//------------------------------------------------------------------
+
+	/**
 	 * Returns a modifiable copy of this list that contains the items of the unfiltered list in unsorted order.
 	 *
 	 * @return a modifiable copy of this list that contains the items of the unfiltered list in unsorted order.
 	 */
 
-	public List<T> getItems()
+	public List<E> getItems()
 	{
 		return new ArrayList<>(baseList);
 	}
@@ -173,7 +189,7 @@ public class ElasticFilteredList<T>
 	 */
 
 	public int indexOf(
-		T	item)
+		E	item)
 	{
 		int numItems = baseList.size();
 		for (int i = 0; i < numItems; i++)
@@ -194,7 +210,7 @@ public class ElasticFilteredList<T>
 	 */
 
 	public void add(
-		T	item)
+		E	item)
 	{
 		baseList.add(item);
 	}
@@ -213,7 +229,7 @@ public class ElasticFilteredList<T>
 
 	public void add(
 		int	index,
-		T	item)
+		E	item)
 	{
 		baseList.add(filteredList.getSourceIndex(sortedList.getSourceIndex(index)), item);
 	}
@@ -228,7 +244,7 @@ public class ElasticFilteredList<T>
 	 * @return the item that was removed from this list.
 	 */
 
-	public T remove(
+	public E remove(
 		int	index)
 	{
 		return baseList.remove(filteredList.getSourceIndex(sortedList.getSourceIndex(index)));
@@ -245,7 +261,7 @@ public class ElasticFilteredList<T>
 	 */
 
 	public boolean remove(
-		T	item)
+		E	item)
 	{
 		return baseList.remove(item);
 	}
@@ -264,7 +280,7 @@ public class ElasticFilteredList<T>
 
 	public void set(
 		int	index,
-		T	item)
+		E	item)
 	{
 		baseList.set(filteredList.getSourceIndex(sortedList.getSourceIndex(index)), item);
 	}
@@ -277,7 +293,7 @@ public class ElasticFilteredList<T>
 	 * @return the filter function that is applied to the filtered list, or {@code null} if no filter is applied.
 	 */
 
-	public Predicate<? super T> getFilter()
+	public Predicate<? super E> getFilter()
 	{
 		return filteredList.getPredicate();
 	}
@@ -294,7 +310,7 @@ public class ElasticFilteredList<T>
 	 */
 
 	public void setFilter(
-		Predicate<? super T>	filter)
+		Predicate<? super E>	filter)
 	{
 		filteredList.setPredicate(filter);
 	}
@@ -307,7 +323,7 @@ public class ElasticFilteredList<T>
 	 * @return the comparison function that is applied to the sorted list, or {@code null} if no comparator is applied.
 	 */
 
-	public Comparator<? super T> getComparator()
+	public Comparator<? super E> getComparator()
 	{
 		return sortedList.getComparator();
 	}
@@ -324,7 +340,7 @@ public class ElasticFilteredList<T>
 	 */
 
 	public void setComparator(
-		Comparator<? super T>	comparator)
+		Comparator<? super E>	comparator)
 	{
 		sortedList.setComparator(comparator);
 	}
@@ -339,7 +355,7 @@ public class ElasticFilteredList<T>
 	 */
 
 	public void update(
-		Collection<? extends T>	items)
+		Collection<? extends E>	items)
 	{
 		baseList.setAll(items);
 	}
@@ -355,7 +371,7 @@ public class ElasticFilteredList<T>
 
 	@SuppressWarnings("unchecked")
 	public void update(
-		T...	items)
+		E...	items)
 	{
 		baseList.setAll(items);
 	}

@@ -36,6 +36,7 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javafx.application.Platform;
 
@@ -62,9 +63,11 @@ import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
 
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 
 import javafx.scene.input.MouseButton;
@@ -91,8 +94,6 @@ import javafx.scene.text.TextBoundsType;
 
 import javafx.stage.Window;
 
-import javafx.util.StringConverter;
-
 import uk.blankaspect.common.basictree.ListNode;
 import uk.blankaspect.common.basictree.MapNode;
 
@@ -101,18 +102,25 @@ import uk.blankaspect.common.css.CssSelector;
 
 import uk.blankaspect.common.exception2.BaseException;
 
-import uk.blankaspect.common.function.IFunction0;
+import uk.blankaspect.common.filesystem.PathUtils;
+
 import uk.blankaspect.common.function.IFunction1;
+import uk.blankaspect.common.function.IFunction2;
 import uk.blankaspect.common.function.IProcedure0;
 
 import uk.blankaspect.common.geometry.VHPos;
+
+import uk.blankaspect.common.message.MessageConstants;
+
+import uk.blankaspect.common.misc.SystemUtils;
 
 import uk.blankaspect.common.namefilter.LocationFilter;
 import uk.blankaspect.common.namefilter.PatternKind;
 
 import uk.blankaspect.common.string.StringUtils;
 
-import uk.blankaspect.ui.jfx.button.ImageButton;
+import uk.blankaspect.ui.jfx.button.Buttons;
+import uk.blankaspect.ui.jfx.button.ImageDataButton;
 
 import uk.blankaspect.ui.jfx.clipboard.ClipboardUtils;
 
@@ -120,22 +128,24 @@ import uk.blankaspect.ui.jfx.combobox.SimpleComboBox;
 
 import uk.blankaspect.ui.jfx.container.PathnamePane;
 
+import uk.blankaspect.ui.jfx.control.ControlUtils;
+
 import uk.blankaspect.ui.jfx.dialog.ConfirmationDialog;
 import uk.blankaspect.ui.jfx.dialog.ErrorDialog;
-import uk.blankaspect.ui.jfx.dialog.MessageDialog;
 import uk.blankaspect.ui.jfx.dialog.NotificationDialog;
 import uk.blankaspect.ui.jfx.dialog.SimpleModalDialog;
 
 import uk.blankaspect.ui.jfx.font.FontUtils;
 
+import uk.blankaspect.ui.jfx.image.ImageData;
 import uk.blankaspect.ui.jfx.image.ImageUtils;
 import uk.blankaspect.ui.jfx.image.MessageIcon32;
 
 import uk.blankaspect.ui.jfx.label.CheckLabel;
+import uk.blankaspect.ui.jfx.label.Labels;
 
 import uk.blankaspect.ui.jfx.listview.ListViewEditor;
 import uk.blankaspect.ui.jfx.listview.ListViewStyle;
-import uk.blankaspect.ui.jfx.listview.SimpleTextListView;
 
 import uk.blankaspect.ui.jfx.locationchooser.FileMatcher;
 import uk.blankaspect.ui.jfx.locationchooser.LocationChooser;
@@ -157,6 +167,7 @@ import uk.blankaspect.ui.jfx.style.StyleSelector;
 import uk.blankaspect.ui.jfx.style.StyleUtils;
 
 import uk.blankaspect.ui.jfx.tableview.SimpleTableView;
+import uk.blankaspect.ui.jfx.tableview.TableViewEditor;
 
 import uk.blankaspect.ui.jfx.text.Text2;
 import uk.blankaspect.ui.jfx.text.TextUtils;
@@ -192,7 +203,7 @@ public class ComparisonDialog
 	private static final	Insets	CHECK_LABEL_PADDING	= new Insets(1.0, 6.0, 1.0, 1.0);
 
 	/** The default initial directory of a file chooser. */
-	private static final	Path	DEFAULT_DIRECTORY	= Path.of(System.getProperty("user.dir", "."));
+	private static final	Path	DEFAULT_DIRECTORY	= SystemUtils.workingDirectory();
 
 	/** Miscellaneous strings. */
 	private static final	String	COMPARE_WITH_FILE_STR		= "Compare current file with chosen file";
@@ -200,12 +211,14 @@ public class ComparisonDialog
 	private static final	String	CHOOSE_FILE_STR				= "Choose file for comparison";
 	private static final	String	FILE_STR					= "File";
 	private static final	String	PARAM_SET_STR				= "Parameter set";
+	private static final	String	SHOW_LIST_STR				= "Show list (Ctrl+Space in field)";
 	private static final	String	ADD_PARAM_SET_STR			= "Add parameter set to list";
-	private static final	String	EDIT_PARAM_SETS_STR			= "Edit list of parameter sets";
 	private static final	String	UPDATE_PARAM_SET_STR		= "Update parameter set";
-	private static final	String	ASK_UPDATE_PARAM_SET_STR	= "The list already contains a parameter set named '%s'.\n"
-																	+ "Do you want to update it with the current parameters?";
+	private static final	String	ASK_UPDATE_PARAM_SET_STR	= """
+		The list already contains a parameter set named '%s'.
+		Do you want to update it with the current parameters?""";
 	private static final	String	UPDATE_STR					= "Update";
+	private static final	String	EDIT_PARAM_SETS_STR			= "Edit list of parameter sets";
 	private static final	String	FILTERS_STR					= "Filters";
 	private static final	String	REMOVE_STR					= "Remove";
 	private static final	String	FILTER_STR					= "filter";
@@ -213,8 +226,9 @@ public class ComparisonDialog
 	private static final	String	REMOVE_FILTER_QUESTION_STR	= "Do you want to remove the selected %s?";
 	private static final	String	FIELDS_STR					= "Fields";
 	private static final	String	COMPARE_STR					= "Compare";
-	private static final	String	NO_DIFFERENCES_STR			= "There are no differences between the selected fields\n"
-																	+ "of the zip entries.";
+	private static final	String	NO_DIFFERENCES_STR			= """
+		There are no differences between the selected fields
+		of the zip entries.""";
 
 	/** CSS colour properties. */
 	private static final	List<ColourProperty>	COLOUR_PROPERTIES	= List.of
@@ -224,82 +238,90 @@ public class ComparisonDialog
 			FxProperty.STROKE,
 			ColourKey.CHECK_LABEL_TICK_BOX,
 			CssSelector.builder()
-						.cls(StyleClass.COMPARISON_DIALOG)
-						.desc(CheckLabel.StyleClass.CHECK_LABEL)
-						.desc(CheckLabel.StyleClass.TICK_BOX)
-						.build()
+					.cls(StyleClass.COMPARISON_DIALOG_ROOT)
+					.desc(CheckLabel.StyleClass.CHECK_LABEL)
+					.desc(CheckLabel.StyleClass.TICK_BOX)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.FILL,
 			ColourKey.PATTERN_KIND_ICON_FILL_GLOB,
 			CssSelector.builder()
-						.cls(StyleClass.FILTER_LIST_VIEW)
-						.desc(StyleClass.PATTERN_KIND_ICON_GLOB)
-						.build()
+					.cls(StyleClass.COMPARISON_DIALOG_ROOT)
+					.desc(StyleClass.FILTER_LIST_VIEW)
+					.desc(StyleClass.PATTERN_KIND_ICON_GLOB)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.FILL,
 			ColourKey.PATTERN_KIND_ICON_FILL_REGEX,
 			CssSelector.builder()
-						.cls(StyleClass.FILTER_LIST_VIEW)
-						.desc(StyleClass.PATTERN_KIND_ICON_REGEX)
-						.build()
-		),
-		ColourProperty.of
-		(
-			FxProperty.STROKE,
-			ColourKey.PATTERN_KIND_ICON_STROKE,
-			CssSelector.builder()
-						.cls(StyleClass.FILTER_LIST_VIEW)
-						.desc(StyleClass.PATTERN_KIND_ICON)
-						.build()
+					.cls(StyleClass.COMPARISON_DIALOG_ROOT)
+					.desc(StyleClass.FILTER_LIST_VIEW)
+					.desc(StyleClass.PATTERN_KIND_ICON_REGEX)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.STROKE,
 			ColourKey.PATTERN_KIND_ICON_STROKE_GLOB,
 			CssSelector.builder()
-						.cls(StyleClass.FILTER_LIST_VIEW)
-						.desc(StyleClass.PATTERN_KIND_ICON_GLOB)
-						.build()
+					.cls(StyleClass.COMPARISON_DIALOG_ROOT)
+					.desc(StyleClass.FILTER_LIST_VIEW)
+					.desc(StyleClass.PATTERN_KIND_ICON_GLOB)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.STROKE,
 			ColourKey.PATTERN_KIND_ICON_STROKE_REGEX,
 			CssSelector.builder()
-						.cls(StyleClass.FILTER_LIST_VIEW)
-						.desc(StyleClass.PATTERN_KIND_ICON_REGEX)
-						.build()
+					.cls(StyleClass.COMPARISON_DIALOG_ROOT)
+					.desc(StyleClass.FILTER_LIST_VIEW)
+					.desc(StyleClass.PATTERN_KIND_ICON_REGEX)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.TEXT_FILL,
 			ColourKey.PATTERN_KIND_ICON_TEXT,
 			CssSelector.builder()
-						.cls(StyleClass.FILTER_LIST_VIEW)
-						.desc(StyleClass.PATTERN_KIND_ICON_TEXT)
-						.build()
+					.cls(StyleClass.COMPARISON_DIALOG_ROOT)
+					.desc(StyleClass.FILTER_LIST_VIEW)
+					.desc(StyleClass.PATTERN_KIND_ICON_TEXT)
+					.build()
+		),
+		ColourProperty.of
+		(
+			FxProperty.BACKGROUND_COLOUR,
+			ListViewStyle.ColourKey.CELL_BACKGROUND_EMPTY,
+			CssSelector.builder()
+					.cls(StyleClass.COMPARISON_DIALOG_ROOT)
+					.desc(StyleClass.FILTER_LIST_VIEW)
+					.desc(StyleClass.PLACEHOLDER_LABEL)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.TEXT_FILL,
 			ColourKey.FILTER_LIST_VIEW_PLACEHOLDER_TEXT,
 			CssSelector.builder()
-						.cls(StyleClass.FILTER_LIST_VIEW)
-						.desc(StyleClass.PLACEHOLDER_LABEL)
-						.build()
+					.cls(StyleClass.COMPARISON_DIALOG_ROOT)
+					.desc(StyleClass.FILTER_LIST_VIEW)
+					.desc(StyleClass.PLACEHOLDER_LABEL)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.TEXT_FILL,
 			ColourKey.RESULT_DIALOG_DIFFERENCE_TEXT,
 			CssSelector.builder()
-						.cls(ListViewStyle.StyleClass.CELL_LABEL)
-						.desc(StyleClass.RESULT_DIALOG_DIFFERENCE)
-						.build()
+					.cls(StyleClass.RESULT_DIALOG_ROOT)
+					.desc(ListViewStyle.StyleClass.CELL_LABEL)
+					.desc(StyleClass.RESULT_DIALOG_DIFFERENCE)
+					.build()
 		)
 	);
 
@@ -309,18 +331,18 @@ public class ComparisonDialog
 		RuleSetFactory.doubleSolidBorder
 		(
 			CssSelector.builder()
-						.cls(StyleClass.COMPARISON_DIALOG)
-						.desc(CheckLabel.StyleClass.CHECK_LABEL)
-						.build(),
+					.cls(StyleClass.COMPARISON_DIALOG_ROOT)
+					.desc(CheckLabel.StyleClass.CHECK_LABEL)
+					.build(),
 			Color.TRANSPARENT,
 			ColourKey.CHECK_LABEL_BORDER
 		),
 		RuleSetFactory.outerFocusBorder
 		(
 			CssSelector.builder()
-						.cls(StyleClass.COMPARISON_DIALOG)
-						.desc(CheckLabel.StyleClass.CHECK_LABEL).pseudo(FxPseudoClass.FOCUSED)
-						.build(),
+					.cls(StyleClass.COMPARISON_DIALOG_ROOT)
+					.desc(CheckLabel.StyleClass.CHECK_LABEL).pseudo(FxPseudoClass.FOCUSED)
+					.build(),
 			ColourKey.CHECK_LABEL_BORDER
 		)
 	);
@@ -328,14 +350,15 @@ public class ComparisonDialog
 	/** CSS style classes. */
 	private interface StyleClass
 	{
-		String	COMPARISON_DIALOG			= StyleConstants.CLASS_PREFIX + "unzip-comparison-dialog";
-		String	FILTER_LIST_VIEW			= COMPARISON_DIALOG + "-filter-list-view";
-		String	PATTERN_KIND_ICON			= StyleConstants.CLASS_PREFIX + "pattern-kind-icon";
+		String	COMPARISON_DIALOG_ROOT	= StyleConstants.APP_CLASS_PREFIX + "comparison-dialog-root";
+		String	RESULT_DIALOG_ROOT		= StyleConstants.APP_CLASS_PREFIX + "result-dialog-root";
+
+		String	FILTER_LIST_VIEW			= StyleConstants.CLASS_PREFIX + "filter-list-view";
 		String	PATTERN_KIND_ICON_GLOB		= StyleConstants.CLASS_PREFIX + "pattern-kind-icon-glob";
 		String	PATTERN_KIND_ICON_REGEX		= StyleConstants.CLASS_PREFIX + "pattern-kind-icon-regex";
 		String	PATTERN_KIND_ICON_TEXT		= StyleConstants.CLASS_PREFIX + "pattern-kind-icon-text";
 		String	PLACEHOLDER_LABEL			= StyleConstants.CLASS_PREFIX + "placeholder-label";
-		String	RESULT_DIALOG_DIFFERENCE	= COMPARISON_DIALOG + "-result-dialog-difference";
+		String	RESULT_DIALOG_DIFFERENCE	= StyleConstants.CLASS_PREFIX + "result-dialog-difference";
 	}
 
 	/** Keys of colours that are used in colour properties. */
@@ -348,11 +371,19 @@ public class ComparisonDialog
 		String	FILTER_LIST_VIEW_PLACEHOLDER_TEXT	= PREFIX + "filterListView.placeholder.text";
 		String	PATTERN_KIND_ICON_FILL_GLOB			= PREFIX + "patternKindIcon.fill.glob";
 		String	PATTERN_KIND_ICON_FILL_REGEX		= PREFIX + "patternKindIcon.fill.regex";
-		String	PATTERN_KIND_ICON_STROKE			= PREFIX + "patternKindIcon.stroke";
 		String	PATTERN_KIND_ICON_STROKE_GLOB		= PREFIX + "patternKindIcon.stroke.glob";
 		String	PATTERN_KIND_ICON_STROKE_REGEX		= PREFIX + "patternKindIcon.stroke.regex";
 		String	PATTERN_KIND_ICON_TEXT				= PREFIX + "patternKindIcon.text";
 		String	RESULT_DIALOG_DIFFERENCE_TEXT		= PREFIX + "resultDialog.difference.text";
+	}
+
+	/** Image identifiers. */
+	private interface ImageId
+	{
+		String	PREFIX = MethodHandles.lookup().lookupClass().getEnclosingClass().getName() + ".";
+
+		String	INCLUDE	= PREFIX + "include";
+		String	EXCLUDE	= PREFIX + "exclude";
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -375,7 +406,12 @@ public class ComparisonDialog
 	static
 	{
 		// Register the style properties of this class and its dependencies with the style manager
-		StyleManager.INSTANCE.register(ComparisonDialog.class, COLOUR_PROPERTIES, RULE_SETS);
+		StyleManager.INSTANCE.register(ComparisonDialog.class, COLOUR_PROPERTIES, RULE_SETS,
+									   ListViewStyle.class);
+
+		// Create images from image data
+		ImageData.add(ImageId.INCLUDE, ImgData.INCLUDE);
+		ImageData.add(ImageId.EXCLUDE, ImgData.EXCLUDE);
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -392,16 +428,18 @@ public class ComparisonDialog
 		// Set properties
 		setResizable(true);
 
+		// Set style class on root node of scene graph
+		getScene().getRoot().getStyleClass().add(StyleClass.COMPARISON_DIALOG_ROOT);
+
 		// Create control pane
 		GridPane controlPane = new GridPane();
 		controlPane.setHgap(CONTROL_H_GAP);
 		controlPane.setVgap(CONTROL_V_GAP);
 		controlPane.setAlignment(Pos.CENTER);
-		controlPane.getStyleClass().add(StyleClass.COMPARISON_DIALOG);
 
 		// Initialise column constraints
 		ColumnConstraints column = new ColumnConstraints();
-		column.setMinWidth(GridPane.USE_PREF_SIZE);
+		column.setMinWidth(Region.USE_PREF_SIZE);
 		column.setHalignment(HPos.RIGHT);
 		column.setHgrow(Priority.NEVER);
 		controlPane.getColumnConstraints().add(column);
@@ -414,15 +452,17 @@ public class ComparisonDialog
 		int row = 0;
 
 		// File chooser: comparand file
+		FileMatcher matcher = UnzipApp.instance().getPreferences().getZipFileFilter();
 		LocationChooser comparandFileChooser = LocationChooser.forFiles();
 		comparandFileChooser.setDialogTitle(CHOOSE_FILE_STR);
 		comparandFileChooser.setDialogStateKey();
-		comparandFileChooser.addFilters(UnzipApp.instance().getPreferences().getZipFileFilter(), FileMatcher.ALL_FILES);
+		comparandFileChooser.addFilters(matcher, FileMatcher.ALL_FILES);
 		comparandFileChooser.setInitialFilter(0);
 
 		// Pathname field: comparand file
 		PathnameField comparandFileField = new PathnameField();
 		comparandFileField.setShowInvalidPathnameError(true);
+		comparandFileField.setLocationMatcher(matcher::matches);
 
 		// Pathname pane: comparand file
 		PathnamePane comparandFilePane = new PathnamePane(comparandFileField, event ->
@@ -437,7 +477,7 @@ public class ComparisonDialog
 			if (file != null)
 			{
 				// Update state
-				state.directory = file.toAbsolutePath().getParent();
+				state.directory = PathUtils.absParent(file);
 
 				// Update pathname field
 				comparandFileField.setLocation(file);
@@ -446,29 +486,48 @@ public class ComparisonDialog
 		TooltipDecorator.addTooltip(comparandFilePane.getButton(), CHOOSE_FILE_STR);
 		controlPane.addRow(row++, new Label(FILE_STR), comparandFilePane);
 
+		// Create function to return a named parameter set from UI components
+		IFunction2<ComparisonParams, String, Boolean> createNamedParamSet = (name, persistent) ->
+		{
+			List<LocationFilter> filters = filterListView.getItems();
+			Set<ZipFileComparison.Field> fields = fieldCheckLabels.entrySet().stream()
+					.filter(entry -> entry.getValue().isSelected())
+					.map(entry -> entry.getKey())
+					.collect(Collectors.toSet());
+			return new ComparisonParams(name, filters, fields, persistent);
+		};
+
 		// Combo box: parameter set
-		SimpleComboBox<ComparisonParams> paramSetComboBox = new SimpleComboBox<>(new StringConverter<>()
+		SimpleComboBox<ComparisonParams> paramSetComboBox = new SimpleComboBox<>(new SimpleComboBox.IConverter<>()
 		{
 			@Override
-			public String toString(
-				ComparisonParams	paramSet)
+			public String toText(
+				ComparisonParams	params)
 			{
-				return (paramSet == null) ? null : paramSet.getName();
+				return (params == null) ? null : params.getName();
 			}
 
 			@Override
-			public ComparisonParams fromString(
+			public ComparisonParams fromText(
 				String	name)
 			{
-				return StringUtils.isNullOrBlank(name) ? null : new ComparisonParams(name);
+				return StringUtils.isNullOrBlank(name) ? null : createNamedParamSet.invoke(name, false);
+			}
+
+			@Override
+			public ComparisonParams copy(
+				ComparisonParams	params)
+			{
+				return (params == null) ? null : params.clone();
 			}
 		},
 		state.paramSets);
 		paramSetComboBox.setMaxWidth(Double.MAX_VALUE);
 		paramSetComboBox.getTextField().setPrefColumnCount(PARAM_SET_FIELD_NUM_COLUMNS);
+		TooltipDecorator.addTooltip(paramSetComboBox.getButton(), SHOW_LIST_STR);
 		HBox.setHgrow(paramSetComboBox, Priority.ALWAYS);
 
-		// Create function to return index of named parameter set
+		// Create function to return index of named parameter set in list
 		IFunction1<Integer, String> findParamSet = name ->
 		{
 			for (int i = 0; i < paramSetComboBox.getItems().size(); i++)
@@ -480,71 +539,64 @@ public class ComparisonDialog
 		};
 
 		// Create function to return parameter set from UI components
-		IFunction0<ComparisonParams> getParamSet = () ->
+		IFunction1<ComparisonParams, Boolean> createParamSet = persistent ->
 		{
 			String name = paramSetComboBox.getText();
 			if (name == null)
 				name = "";
-			List<LocationFilter> filters = filterListView.getItems();
-			Set<ZipFileComparison.Field> fields =
-					fieldCheckLabels.entrySet().stream()
-												.filter(entry -> entry.getValue().isSelected())
-												.map(entry -> entry.getKey())
-												.collect(Collectors.toSet());
-			return new ComparisonParams(name, filters, fields);
+			return createNamedParamSet.invoke(name, persistent);
 		};
 
 		// Create button: add parameter set to list
-		ImageButton addParamSetButton = new ImageButton(Images.PLUS_SIGN, ADD_PARAM_SET_STR);
+		ImageDataButton addParamSetButton = new ImageDataButton(Images.ImageId.PLUS_SIGN, ADD_PARAM_SET_STR);
+		HBox.setMargin(addParamSetButton, new Insets(0.0, 0.0, 0.0, 4.0));
 
 		// Create procedure to update 'add parameter set to list' button
 		IProcedure0 updateAddParamSetButton = () ->
 				addParamSetButton.setDisable(StringUtils.isNullOrBlank(paramSetComboBox.getText()));
 
-		// Create button: edit list of parameter sets
-		ImageButton editParamSetsButton = new ImageButton(Images.PENCIL, EDIT_PARAM_SETS_STR);
-
-		// Create procedure to update 'edit list of parameter sets' button
-		IProcedure0 updateEditParamSetsButton = () ->
-				editParamSetsButton.setDisable(paramSetComboBox.getItems().isEmpty());
-
 		// Handle action on 'add parameter set to list' button
 		addParamSetButton.setOnAction(event ->
 		{
+			// Get text from combo box
 			String name = paramSetComboBox.getText();
+
+			// If there is text, create parameter set and add it to list of items of combo box
 			if (!StringUtils.isNullOrBlank(name))
 			{
-				List<ComparisonParams> items = new ArrayList<>(paramSetComboBox.getItems());
-				int index = findParamSet.invoke(name);
-				if (index < 0)
+				// Ask whether to save directory
+				Boolean save = Utils.askSaveBeyondSession(this, ADD_PARAM_SET_STR, PARAM_SET_STR.toLowerCase());
+
+				// If not cancelled, add filter to list
+				if (save != null)
 				{
-					ComparisonParams paramSet = getParamSet.invoke();
-					items.add(0, paramSet);
-					paramSetComboBox.setItems(items);
-					paramSetComboBox.setValue(paramSet);
-					updateEditParamSetsButton.invoke();
-				}
-				else if (ConfirmationDialog.show(this, UPDATE_PARAM_SET_STR, MessageIcon32.QUESTION.get(),
-												 String.format(ASK_UPDATE_PARAM_SET_STR, name), UPDATE_STR))
-				{
-					ComparisonParams paramSet = getParamSet.invoke();
-					items.set(index, paramSet);
-					paramSetComboBox.setItems(items);
-					paramSetComboBox.setValue(paramSet);
-					updateEditParamSetsButton.invoke();
+					int index = findParamSet.invoke(name);
+					if ((index < 0)
+							|| ConfirmationDialog.show(this, UPDATE_PARAM_SET_STR, MessageIcon32.QUESTION.get(),
+													   String.format(ASK_UPDATE_PARAM_SET_STR, name), UPDATE_STR))
+					{
+						ComparisonParams paramSet = createParamSet.invoke(save);
+						List<ComparisonParams> items = new ArrayList<>(paramSetComboBox.getItems());
+						if (index < 0)
+							items.add(paramSet);
+						else
+							items.set(index, paramSet);
+						paramSetComboBox.setItems(items);
+						paramSetComboBox.setValue(paramSet.clone());
+					}
 				}
 			}
 		});
-		HBox.setMargin(addParamSetButton, new Insets(0.0, 0.0, 0.0, 4.0));
 
 		// Update 'add parameter set to list' button when content of combo-box editor changes
 		paramSetComboBox.getTextField().textProperty().addListener(observable -> updateAddParamSetButton.invoke());
 
-		// Handle action on 'edit list of parameter sets' button
+		// Create button: edit list of parameter sets
+		ImageDataButton editParamSetsButton = new ImageDataButton(Images.ImageId.PENCIL, EDIT_PARAM_SETS_STR);
 		editParamSetsButton.setOnAction(event ->
 		{
 			ComparisonParams paramSet = paramSetComboBox.getValue();
-			List<ComparisonParams> paramSets = new EditParamSetsDialog(this, paramSetComboBox.getItems()).showDialog();
+			List<ComparisonParams> paramSets = new ParamSetListDialog(this, paramSetComboBox.getItems()).showDialog();
 			if (paramSets != null)
 			{
 				paramSetComboBox.setItems(paramSets);
@@ -556,15 +608,11 @@ public class ComparisonDialog
 					else
 						paramSetComboBox.selectIndex(index);
 				}
-				updateEditParamSetsButton.invoke();
 			}
 		});
 
 		// Update 'add parameter set to list' button
 		updateAddParamSetButton.invoke();
-
-		// Update 'edit list of parameter sets' button
-		updateEditParamSetsButton.invoke();
 
 		// Pane: parameter set
 		HBox paramSetPane = new HBox(2.0, paramSetComboBox, addParamSetButton, editParamSetsButton);
@@ -631,6 +679,7 @@ public class ComparisonDialog
 			checkLabel.setMaxWidth(Double.MAX_VALUE);
 			checkLabel.setPadding(CHECK_LABEL_PADDING);
 			checkLabel.setBorderColour(getColour(ColourKey.CHECK_LABEL_BORDER));
+			checkLabel.setTickBoxColour(getColour(ColourKey.CHECK_LABEL_TICK_BOX));
 			checkLabel.setDimIfUnselected(true);
 			checkLabel.selectedProperty().addListener((observable, oldSelected, selected) ->
 			{
@@ -644,7 +693,7 @@ public class ComparisonDialog
 
 		// Pane: fields
 		VBox fieldPane = new VBox();
-		fieldPane.setMaxWidth(VBox.USE_PREF_SIZE);
+		fieldPane.setMaxWidth(Region.USE_PREF_SIZE);
 		fieldPane.getChildren().addAll(fieldCheckLabels.values());
 		controlPane.addRow(row++, fieldsLabel, fieldPane);
 
@@ -673,12 +722,12 @@ public class ComparisonDialog
 		addContent(controlPane);
 
 		// Create button: compare
-		Button compareButton = new Button(COMPARE_STR);
+		Button compareButton = Buttons.hNoShrink(COMPARE_STR);
 		compareButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 		compareButton.setOnAction(event ->
 		{
 			Path file = comparandFileField.getLocation();
-			ComparisonParams paramSet = getParamSet.invoke();
+			ComparisonParams paramSet = createParamSet.invoke(false);
 			try
 			{
 				// Get differences between filtered zip entries
@@ -687,7 +736,10 @@ public class ComparisonDialog
 
 				// Report result
 				if (differences.isEmpty())
-					NotificationDialog.show(this, COMPARE_FILES_STR, MessageIcon32.INFORMATION.get(), NO_DIFFERENCES_STR);
+				{
+					NotificationDialog.show(this, COMPARE_FILES_STR, MessageIcon32.INFORMATION.get(),
+											NO_DIFFERENCES_STR);
+				}
 				else
 					new ResultDialog(this, differences).showDialog();
 			}
@@ -712,7 +764,7 @@ public class ComparisonDialog
 		updateCompareButton.invoke();
 
 		// Create button: close
-		Button closeButton = new Button(CLOSE_STR);
+		Button closeButton = Buttons.hNoShrink(CLOSE_STR);
 		closeButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 		closeButton.setOnAction(event -> requestClose());
 		addButton(closeButton, HPos.RIGHT);
@@ -721,7 +773,7 @@ public class ComparisonDialog
 		setKeyFireButton(closeButton, compareButton);
 
 		// Update images of image buttons
-		Images.updateImageButtons(getScene());
+		ImageDataButton.updateButtons(getScene());
 
 		// Get drag-and-drop filter
 		Predicate<Path> dragAndDropFilter = UnzipApp.instance().getPreferences().getZipFileDragAndDropFilter();
@@ -768,9 +820,9 @@ public class ComparisonDialog
 		{
 			// Search saved list of parameter sets for saved name
 			ComparisonParams paramSet = state.paramSets.stream()
-														.filter(ps -> ps.getName().equals(state.paramSetName))
-														.findFirst()
-														.orElse(null);
+					.filter(ps -> ps.getName().equals(state.paramSetName))
+					.findFirst()
+					.orElse(null);
 
 			// If saved name doesn't match a parameter set, set name on text field of combo box ...
 			if (paramSet == null)
@@ -781,7 +833,7 @@ public class ComparisonDialog
 				paramSetComboBox.setValue(paramSet);
 		}
 
-		// Apply new style sheet to scene
+		// Apply style sheet to scene
 		applyStyleSheet();
 	}
 
@@ -807,12 +859,12 @@ public class ComparisonDialog
 	//------------------------------------------------------------------
 
 	/**
-	 * Returns the colour that is associated with the specified key in the colour map of the selected theme of the
+	 * Returns the colour that is associated with the specified key in the colour map of the current theme of the
 	 * {@linkplain StyleManager style manager}.
 	 *
 	 * @param  key
 	 *           the key of the desired colour.
-	 * @return the colour that is associated with {@code key} in the colour map of the selected theme of the style
+	 * @return the colour that is associated with {@code key} in the colour map of the current theme of the style
 	 *         manager, or {@link StyleManager#DEFAULT_COLOUR} if there is no such colour.
 	 */
 
@@ -888,11 +940,14 @@ public class ComparisonDialog
 			Utils.encodeLocation(rootNode, PropertyKey.DIRECTORY, directory);
 
 			// Encode parameter sets
-			if (!paramSets.isEmpty())
+			if (paramSets.stream().anyMatch(paramSet -> paramSet.isPersistent()))
 			{
 				ListNode paramSetsNode = rootNode.addList(PropertyKey.PARAMETER_SETS);
 				for (ComparisonParams paramSet : paramSets)
-					paramSetsNode.add(paramSet.encode());
+				{
+					if (paramSet.isPersistent())
+						paramSetsNode.add(paramSet.encode());
+				}
 			}
 
 			// Return root node
@@ -924,7 +979,7 @@ public class ComparisonDialog
 				paramSets.clear();
 				for (MapNode node : rootNode.getListNode(key).mapNodes())
 				{
-					ComparisonParams paramSet = new ComparisonParams("");
+					ComparisonParams paramSet = new ComparisonParams();
 					paramSet.decode(node);
 					paramSets.add(paramSet);
 				}
@@ -1034,20 +1089,10 @@ public class ComparisonDialog
 			// Initialise 'glob' flag
 			boolean glob = patternKind.isGlob();
 
-			// Create semicircle and half-disc
+			// Filename: create half-disc
 			if (patternKind.isFilename())
 			{
-				// Create semicircle (left)
-				Arc arc = new Arc(radius, radius, radius, radius, 90.0, 180.0);
-				arc.setStrokeWidth(1.0);
-				arc.setFill(null);
-				arc.setStrokeType(StrokeType.INSIDE);
-				arc.setStroke(getColour(ColourKey.PATTERN_KIND_ICON_STROKE));
-				arc.getStyleClass().add(StyleClass.PATTERN_KIND_ICON);
-				group.getChildren().add(arc);
-
-				// Create half-disc (right)
-				arc = new Arc(radius, radius, radius, radius, 270.0, 180.0);
+				Arc arc = new Arc(radius, radius, radius, radius, 270.0, 180.0);
 				arc.setType(ArcType.CHORD);
 				arc.setStrokeWidth(1.0);
 				arc.setStrokeType(StrokeType.INSIDE);
@@ -1059,7 +1104,7 @@ public class ComparisonDialog
 				group.getChildren().add(arc);
 			}
 
-			// Create disc
+			// Pathname: create disc
 			else
 			{
 				Circle disc = new Circle(radius, radius, radius);
@@ -1159,9 +1204,9 @@ public class ComparisonDialog
 			getStyleClass().addAll(StyleClass.FILTER_LIST_VIEW, ListViewStyle.StyleClass.LIST_VIEW);
 
 			// Set placeholder label
-			Label placeholderLabel = new Label(NO_FILTERS_STR);
-			placeholderLabel.setTextFill(getColour(ColourKey.FILTER_LIST_VIEW_PLACEHOLDER_TEXT));
-			placeholderLabel.setFont(FontUtils.defaultFont(PLACEHOLDER_LABEL_FONT_SIZE_FACTOR));
+			Label placeholderLabel = Labels.expansive(NO_FILTERS_STR, PLACEHOLDER_LABEL_FONT_SIZE_FACTOR,
+													  getColour(ColourKey.FILTER_LIST_VIEW_PLACEHOLDER_TEXT),
+													  getColour(ListViewStyle.ColourKey.CELL_BACKGROUND_EMPTY));
 			placeholderLabel.getStyleClass().add(StyleClass.PLACEHOLDER_LABEL);
 			setPlaceholder(placeholderLabel);
 
@@ -1179,21 +1224,17 @@ public class ComparisonDialog
 			}
 
 			// Ensure cells are redrawn if scroll bar is hidden
-			widthProperty().addListener(observable -> Platform.runLater(() -> refresh()));
+			widthProperty().addListener(observable -> Platform.runLater(this::refresh));
 
 			// Set background of empty cells
 			if (StyleManager.INSTANCE.notUsingStyleSheet())
 			{
-				skinProperty().addListener((observable, oldSkin, skin) ->
+				ControlUtils.onSkin(this, () ->
 				{
-					if (skin != null)
+					if (lookup(StyleSelector.VIRTUAL_FLOW) instanceof Region region)
 					{
-						Node node = lookup(StyleSelector.VIRTUAL_FLOW);
-						if (node instanceof Region region)
-						{
-							region.setBackground(SceneUtils.createColouredBackground(
-									getColour(ListViewStyle.ColourKey.CELL_BACKGROUND_EMPTY)));
-						}
+						region.setBackground(SceneUtils.createColouredBackground(
+								getColour(ListViewStyle.ColourKey.CELL_BACKGROUND_EMPTY)));
 					}
 				});
 			}
@@ -1299,7 +1340,11 @@ public class ComparisonDialog
 				});
 
 				// When mouse leaves cell, deactivate any cell pop-up
-				addEventHandler(MouseEvent.MOUSE_EXITED, event -> cellPopUpManager.deactivate());
+				addEventHandler(MouseEvent.MOUSE_EXITED, event ->
+				{
+					if (CellPopUpManager.deactivatePopUpOnMouseExited())
+						cellPopUpManager.deactivate();
+				});
 
 				// When a mouse button is released, deactivate any cell pop-up
 				addEventFilter(MouseEvent.MOUSE_RELEASED, event ->
@@ -1422,14 +1467,14 @@ public class ComparisonDialog
 				boolean selected = getSelectionModel().getSelectedIndices().contains(index);
 				boolean focused = getListView().isFocused();
 				Color colour = isEmpty()
-									? null
-									: selected
-											? focused
-													? getColour(ListViewStyle.ColourKey.CELL_BACKGROUND_SELECTED_FOCUSED)
-													: getColour(ListViewStyle.ColourKey.CELL_BACKGROUND_SELECTED)
-											: (index % 2 == 0)
-													? getColour(ListViewStyle.ColourKey.CELL_BACKGROUND_EVEN)
-													: getColour(ListViewStyle.ColourKey.CELL_BACKGROUND_ODD);
+								? null
+								: selected
+										? focused
+												? getColour(ListViewStyle.ColourKey.CELL_BACKGROUND_SELECTED_FOCUSED)
+												: getColour(ListViewStyle.ColourKey.CELL_BACKGROUND_SELECTED)
+										: (index % 2 == 0)
+												? getColour(ListViewStyle.ColourKey.CELL_BACKGROUND_EVEN)
+												: getColour(ListViewStyle.ColourKey.CELL_BACKGROUND_ODD);
 				if (!selected && focused && (getFocusModel().getFocusedIndex() == index))
 				{
 					setBackground(SceneUtils.createColouredBackground(
@@ -1458,12 +1503,16 @@ public class ComparisonDialog
 				if (filter != null)
 				{
 					// Create filter-kind icon
-					ImageView filterKindIcon = ImageUtils.createSmoothImageView(filter.isInclusive() ? ImageData.INCLUDE
-																									 : ImageData.EXCLUDE);
+					Image image = switch (filter.getKind())
+					{
+						case INCLUDE -> ImageData.image(ImageId.INCLUDE);
+						case EXCLUDE -> ImageData.image(ImageId.EXCLUDE);
+					};
+					ImageView filterKindIcon = ImageUtils.smoothImageView(image);
 
 					// Create pattern-kind icon
 					Group patternKindIcon = iconFactory.createIcon(filter.getPatternKind(), iconRadius);
-					patternKindIcon.setLayoutX(filterKindIcon.getImage().getWidth() + ICON_GAP);
+					patternKindIcon.setLayoutX(image.getWidth() + ICON_GAP);
 
 					// Align filter-kind icon and pattern-kind icon vertically
 					double filterKindHeight = filterKindIcon.getLayoutBounds().getHeight();
@@ -1519,72 +1568,6 @@ public class ComparisonDialog
 
 		//==============================================================
 
-	////////////////////////////////////////////////////////////////////
-	//  Image data
-	////////////////////////////////////////////////////////////////////
-
-		private interface ImageData
-		{
-			byte[]	INCLUDE	=
-			{
-				(byte)0x89, (byte)0x50, (byte)0x4E, (byte)0x47, (byte)0x0D, (byte)0x0A, (byte)0x1A, (byte)0x0A,
-				(byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0D, (byte)0x49, (byte)0x48, (byte)0x44, (byte)0x52,
-				(byte)0x00, (byte)0x00, (byte)0x00, (byte)0x10, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x10,
-				(byte)0x08, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x1F, (byte)0xF3, (byte)0xFF,
-				(byte)0x61, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x8A, (byte)0x49, (byte)0x44, (byte)0x41,
-				(byte)0x54, (byte)0x78, (byte)0x5E, (byte)0xCD, (byte)0x93, (byte)0xDD, (byte)0x09, (byte)0x80,
-				(byte)0x30, (byte)0x0C, (byte)0x84, (byte)0x6F, (byte)0x21, (byte)0x5D, (byte)0xD9, (byte)0x17,
-				(byte)0xAD, (byte)0x75, (byte)0x09, (byte)0x11, (byte)0x1C, (byte)0x40, (byte)0x37, (byte)0xB0,
-				(byte)0x6E, (byte)0xE0, (byte)0x02, (byte)0x52, (byte)0x7B, (byte)0xE2, (byte)0x4F, (byte)0xC9,
-				(byte)0x83, (byte)0x8A, (byte)0x55, (byte)0xE8, (byte)0xC1, (byte)0xF7, (byte)0x12, (byte)0x2E,
-				(byte)0x47, (byte)0x5A, (byte)0x12, (byte)0xE0, (byte)0x13, (byte)0x29, (byte)0xA4, (byte)0x8E,
-				(byte)0x1E, (byte)0x1A, (byte)0x06, (byte)0x15, (byte)0xC6, (byte)0x4B, (byte)0xE8, (byte)0xA1,
-				(byte)0x37, (byte)0x47, (byte)0xE2, (byte)0x07, (byte)0xF4, (byte)0xA8, (byte)0x31, (byte)0xA3,
-				(byte)0x79, (byte)0x08, (byte)0xBD, (byte)0x0A, (byte)0xDD, (byte)0x19, (byte)0x50, (byte)0xBA,
-				(byte)0x54, (byte)0x69, (byte)0x72, (byte)0xB4, (byte)0x53, (byte)0x6B, (byte)0x89, (byte)0xAC,
-				(byte)0xAF, (byte)0x68, (byte)0x0C, (byte)0x67, (byte)0x00, (byte)0xC7, (byte)0x92, (byte)0x06,
-				(byte)0x87, (byte)0xDD, (byte)0x24, (byte)0xEB, (byte)0x5B, (byte)0x80, (byte)0x89, (byte)0x30,
-				(byte)0x80, (byte)0xEF, (byte)0xBD, (byte)0xD3, (byte)0xF1, (byte)0x27, (byte)0xBF, (byte)0x04,
-				(byte)0x48, (byte)0xF6, (byte)0x26, (byte)0x59, (byte)0x8F, (byte)0x31, (byte)0x20, (byte)0x78,
-				(byte)0x91, (byte)0xDE, (byte)0xAC, (byte)0x72, (byte)0xE1, (byte)0xAF, (byte)0x32, (byte)0x0F,
-				(byte)0x83, (byte)0xBB, (byte)0xCD, (byte)0xB1, (byte)0xE4, (byte)0xF1, (byte)0x48, (byte)0xE8,
-				(byte)0x61, (byte)0x73, (byte)0xE6, (byte)0x1F, (byte)0x53, (byte)0x80, (byte)0x16, (byte)0xA2,
-				(byte)0x4B, (byte)0x93, (byte)0x44, (byte)0xAB, (byte)0x23, (byte)0x49, (byte)0x6A, (byte)0x00,
-				(byte)0x00, (byte)0x00, (byte)0x00, (byte)0x49, (byte)0x45, (byte)0x4E, (byte)0x44, (byte)0xAE,
-				(byte)0x42, (byte)0x60, (byte)0x82
-			};
-
-			byte[]	EXCLUDE	=
-			{
-				(byte)0x89, (byte)0x50, (byte)0x4E, (byte)0x47, (byte)0x0D, (byte)0x0A, (byte)0x1A, (byte)0x0A,
-				(byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0D, (byte)0x49, (byte)0x48, (byte)0x44, (byte)0x52,
-				(byte)0x00, (byte)0x00, (byte)0x00, (byte)0x10, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x10,
-				(byte)0x08, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x1F, (byte)0xF3, (byte)0xFF,
-				(byte)0x61, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x83, (byte)0x49, (byte)0x44, (byte)0x41,
-				(byte)0x54, (byte)0x78, (byte)0x5E, (byte)0xDD, (byte)0x93, (byte)0x4D, (byte)0x0A, (byte)0x83,
-				(byte)0x30, (byte)0x18, (byte)0x44, (byte)0xDF, (byte)0x85, (byte)0xF4, (byte)0xFE, (byte)0x5B,
-				(byte)0x15, (byte)0x63, (byte)0xBB, (byte)0xB2, (byte)0x27, (byte)0xD0, (byte)0xF4, (byte)0x14,
-				(byte)0xAE, (byte)0x44, (byte)0x33, (byte)0x4A, (byte)0x8B, (byte)0x46, (byte)0xD4, (byte)0xD6,
-				(byte)0x1F, (byte)0x10, (byte)0x07, (byte)0xDE, (byte)0x26, (byte)0xCC, (byte)0x0C, (byte)0x59,
-				(byte)0xCC, (byte)0x07, (byte)0x47, (byte)0x28, (byte)0x86, (byte)0x30, (byte)0x83, (byte)0xD7,
-				(byte)0x03, (byte)0xEC, (byte)0x13, (byte)0xDE, (byte)0x4B, (byte)0xC8, (byte)0x93, (byte)0x3A,
-				(byte)0x6F, (byte)0x04, (byte)0xC1, (byte)0xB7, (byte)0x40, (byte)0xE1, (byte)0x12, (byte)0x6A,
-				(byte)0xFB, (byte)0x23, (byte)0x85, (byte)0xC3, (byte)0x40, (byte)0xFE, (byte)0xC9, (byte)0xA3,
-				(byte)0x56, (byte)0xDF, (byte)0xB4, (byte)0x86, (byte)0xFB, (byte)0x4D, (byte)0xD9, (byte)0xA7,
-				(byte)0xD9, (byte)0x56, (byte)0xA0, (byte)0x4C, (byte)0x17, (byte)0x96, (byte)0xAE, (byte)0x53,
-				(byte)0x50, (byte)0x25, (byte)0x49, (byte)0xB3, (byte)0x26, (byte)0x79, (byte)0xCE, (byte)0x2B,
-				(byte)0xF8, (byte)0x87, (byte)0x1B, (byte)0x14, (byte)0x8C, (byte)0x86, (byte)0xA4, (byte)0x6D,
-				(byte)0x6B, (byte)0x9E, (byte)0xBE, (byte)0x69, (byte)0x8E, (byte)0xC9, (byte)0x94, (byte)0x75,
-				(byte)0x18, (byte)0x7A, (byte)0xD0, (byte)0x4F, (byte)0xFC, (byte)0xE3, (byte)0xF1, (byte)0x91,
-				(byte)0x47, (byte)0x5E, (byte)0x33, (byte)0x3C, (byte)0xA6, (byte)0x3D, (byte)0x6A, (byte)0x01,
-				(byte)0x59, (byte)0x7E, (byte)0x87, (byte)0x90, (byte)0x85, (byte)0x0B, (byte)0x2E, (byte)0xBA,
-				(byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x49, (byte)0x45, (byte)0x4E, (byte)0x44,
-				(byte)0xAE, (byte)0x42, (byte)0x60, (byte)0x82
-			};
-		}
-
-		//==============================================================
-
 	}
 
 	//==================================================================
@@ -1623,8 +1606,8 @@ public class ComparisonDialog
 	//  Class variables
 	////////////////////////////////////////////////////////////////////
 
-		private static	FilterKind	filterKind	= FilterKind.INCLUDE;
-		private static	PatternKind	patternKind	= PatternKind.GLOB_PATHNAME;
+		private static	LocationFilter.Kind	filterKind	= LocationFilter.Kind.INCLUDE;
+		private static	PatternKind			patternKind	= PatternKind.GLOB_PATHNAME;
 
 	////////////////////////////////////////////////////////////////////
 	//  Instance variables
@@ -1661,28 +1644,25 @@ public class ComparisonDialog
 			controlPane.setVgap(CONTROL_PANE_V_GAP);
 
 			// Initialise column constraints
-			ColumnConstraints column1 = new ColumnConstraints();
-			column1.setMinWidth(GridPane.USE_PREF_SIZE);
-			column1.setHalignment(HPos.RIGHT);
-			column1.setFillWidth(false);
-			controlPane.getColumnConstraints().add(column1);
+			ColumnConstraints column = new ColumnConstraints();
+			column.setMinWidth(Region.USE_PREF_SIZE);
+			column.setHalignment(HPos.RIGHT);
+			column.setFillWidth(false);
+			controlPane.getColumnConstraints().add(column);
 
-			ColumnConstraints column2 = new ColumnConstraints();
-			column2.setHalignment(HPos.LEFT);
-			column2.setFillWidth(false);
-			controlPane.getColumnConstraints().add(column2);
+			column = new ColumnConstraints();
+			column.setHalignment(HPos.LEFT);
+			column.setFillWidth(false);
+			controlPane.getColumnConstraints().add(column);
 
 			// Initialise row index
 			int row = 0;
 
 			// Spinner: filter kind
-			FilterKind initFilterKind = (filter == null)
-												? filterKind
-												: filter.isInclusive()
-														? FilterKind.INCLUDE
-														: FilterKind.EXCLUDE;
-			CollectionSpinner<FilterKind> filterKindSpinner =
-					CollectionSpinner.leftRightH(HPos.LEFT, true, FilterKind.class, initFilterKind, null, null);
+			LocationFilter.Kind initFilterKind = (filter == null) ? filterKind : filter.getKind();
+			CollectionSpinner<LocationFilter.Kind> filterKindSpinner =
+					CollectionSpinner.leftRightH(HPos.LEFT, true, LocationFilter.Kind.class, initFilterKind, null,
+												 null);
 			controlPane.addRow(row++, new Label(FILTER_KIND_STR), filterKindSpinner);
 
 			// Spinner: pattern kind
@@ -1700,14 +1680,14 @@ public class ComparisonDialog
 			addContent(controlPane);
 
 			// Create button: OK
-			Button okButton = new Button(OK_STR);
+			Button okButton = Buttons.hNoShrink(OK_STR);
 			okButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 			okButton.setOnAction(event ->
 			{
 				try
 				{
-					result = new LocationFilter((filterKindSpinner.getItem() == FilterKind.INCLUDE),
-												patternKindSpinner.getItem(), patternField.getText(), null);
+					result = new LocationFilter(filterKindSpinner.getItem(), patternKindSpinner.getItem(),
+												patternField.getText(), null);
 					hide();
 				}
 				catch (BaseException e)
@@ -1756,7 +1736,7 @@ public class ComparisonDialog
 			updateOkButton.invoke();
 
 			// Create button: cancel
-			Button cancelButton = new Button(CANCEL_STR);
+			Button cancelButton = Buttons.hNoShrink(CANCEL_STR);
 			cancelButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 			cancelButton.setOnAction(event -> requestClose());
 			addButton(cancelButton, HPos.RIGHT);
@@ -1789,66 +1769,15 @@ public class ComparisonDialog
 
 		//--------------------------------------------------------------
 
-	////////////////////////////////////////////////////////////////////
-	//  Enumerated types
-	////////////////////////////////////////////////////////////////////
-
-
-		// ENUMERATION: KINDS OF FILTER
-
-
-		private enum FilterKind
-		{
-
-		////////////////////////////////////////////////////////////////
-		//  Constants
-		////////////////////////////////////////////////////////////////
-
-			INCLUDE,
-			EXCLUDE;
-
-		////////////////////////////////////////////////////////////////
-		//  Constructors
-		////////////////////////////////////////////////////////////////
-
-			/**
-			 * Creates a new instance of a kind of filter.
-			 */
-
-			private FilterKind()
-			{
-			}
-
-			//----------------------------------------------------------
-
-		////////////////////////////////////////////////////////////////
-		//  Instance methods : overriding methods
-		////////////////////////////////////////////////////////////////
-
-			/**
-			 * {@inheritDoc}
-			 */
-			@Override
-			public String toString()
-			{
-				return StringUtils.firstCharToUpperCase(name().toLowerCase());
-			}
-
-			//----------------------------------------------------------
-
-		}
-
-		//==============================================================
-
 	}
 
 	//==================================================================
 
 
-	// CLASS: 'EDIT PARAMETER SETS' DIALOG
+	// CLASS: DIALOG FOR EDITING A LIST OF PARAMETER SETS
 
 
-	private static class EditParamSetsDialog
+	private static class ParamSetListDialog
 		extends SimpleModalDialog<List<ComparisonParams>>
 	{
 
@@ -1856,17 +1785,21 @@ public class ComparisonDialog
 	//  Constants
 	////////////////////////////////////////////////////////////////////
 
-		private static final	double	LIST_VIEW_WIDTH		= 240.0;
-		private static final	double	LIST_VIEW_HEIGHT	= 288.0;
+		private static final	double	PARM_SET_COLUMN_WIDTH_FACTOR	= 15.0;
+
+		private static final	double	TABLE_VIEW_HEIGHT	= 288.0;
 
 		private static final	Insets	EDITOR_BUTTON_PANE_PADDING	= new Insets(2.0, 6.0, 2.0, 0.0);
 
 		private static final	Insets	CONTENT_PANE_PADDING	= new Insets(2.0);
 
 		private static final	String	REMOVE_PARAM_SET_STR	= "Remove parameter set";
-		private static final	String	REMOVE_QUESTION_STR		= "Parameter set: %s" + MessageDialog.MESSAGE_SEPARATOR
-																	+ "Do you want to remove the selected parameter set?";
+		private static final	String	REMOVE_QUESTION_STR		= "Parameter set: %s" + MessageConstants.LABEL_SEPARATOR
+																	+ "Do you want to remove the selected "
+																	+ "parameter set?";
 		private static final	String	REMOVE_STR				= "Remove";
+		private static final	String	SAVE_SELECTED_STR		= "Save selected parameter sets";
+		private static final	String	DONT_SAVE_SELECTED_STR	= "Don't save selected parameter sets";
 
 	////////////////////////////////////////////////////////////////////
 	//  Instance variables
@@ -1878,9 +1811,9 @@ public class ComparisonDialog
 	//  Constructors
 	////////////////////////////////////////////////////////////////////
 
-		private EditParamSetsDialog(
+		private ParamSetListDialog(
 			Window					owner,
-			List<ComparisonParams>	directories)
+			List<ComparisonParams>	paramSets)
 		{
 			// Call superclass constructor
 			super(owner, MethodHandles.lookup().lookupClass().getCanonicalName(), EDIT_PARAM_SETS_STR);
@@ -1888,29 +1821,51 @@ public class ComparisonDialog
 			// Set properties
 			setResizable(true);
 
-			// Create list view
-			SimpleTextListView<ComparisonParams> listView =
-					new SimpleTextListView<>(FXCollections.observableArrayList(directories),
-											 paramSet -> paramSet.getName());
-			listView.setPrefSize(LIST_VIEW_WIDTH, LIST_VIEW_HEIGHT);
+			// Create column information for table view
+			List<PersistableItemTableView.ColumnInfo> columnInfos = List.of(
+				new PersistableItemTableView.ColumnInfo(PARAM_SET_STR,
+														TextUtils.textHeightCeil(PARM_SET_COLUMN_WIDTH_FACTOR))
+			);
 
-			// Create list-view editor
+			// Create table view
+			PersistableItemTableView<ComparisonParams> tableView = new PersistableItemTableView<>(columnInfos);
+			tableView.setPrefHeight(TABLE_VIEW_HEIGHT);
+			tableView.setItems(paramSets.stream().map(paramSet -> paramSet.clone()).toList());
+			tableView.setMenuItemFactory(save ->
+			{
+				MenuItem menuItem = new MenuItem(save ? SAVE_SELECTED_STR : DONT_SAVE_SELECTED_STR);
+				Stream<ComparisonParams> selectedItems = tableView.getSelectionModel().getSelectedItems().stream();
+				menuItem.setDisable(save ? selectedItems.allMatch(item -> item.isPersistent())
+										 : selectedItems.noneMatch(item -> item.isPersistent()));
+				menuItem.setOnAction(event ->
+				{
+					// Update 'persistent' flag of selected parameter sets
+					for (ComparisonParams paramSet : tableView.getSelectionModel().getSelectedItems())
+						paramSet.setPersistent(save);
+
+					// Redraw table view
+					tableView.refresh();
+				});
+				return menuItem;
+			});
+
+			// Create table-view editor
 			Window window = this;
-			ListViewEditor<ComparisonParams> editor = new ListViewEditor<>(listView, new ListViewEditor.IEditor<>()
+			TableViewEditor.IEditor<ComparisonParams> editor0 = new TableViewEditor.IEditor<>()
 			{
 				@Override
 				public ComparisonParams edit(
-					ListViewEditor.Action	action,
-					ComparisonParams		paramSet)
+					TableViewEditor.Action	action,
+					ComparisonParams		target)
 				{
 					return null;
 				}
 
 				@Override
-				public Set<ListViewEditor.Action> getActions()
+				public Set<TableViewEditor.Action> getActions()
 				{
-					return EnumSet.of(ListViewEditor.Action.REMOVE, ListViewEditor.Action.MOVE_UP,
-									  ListViewEditor.Action.MOVE_DOWN);
+					return EnumSet.of(TableViewEditor.Action.REMOVE, TableViewEditor.Action.MOVE_UP,
+									  TableViewEditor.Action.MOVE_DOWN);
 				}
 
 				@Override
@@ -1932,8 +1887,15 @@ public class ComparisonDialog
 					return ConfirmationDialog.show(window, REMOVE_PARAM_SET_STR, MessageIcon32.QUESTION.get(),
 												   String.format(REMOVE_QUESTION_STR, paramSet.getName()), REMOVE_STR);
 				}
-			},
-			false);
+			};
+			TableViewEditor<ComparisonParams> editor = new TableViewEditor<>(tableView, editor0, false)
+			{
+				@Override
+				public List<ComparisonParams> getItems()
+				{
+					return tableView.getItemList();
+				}
+			};
 			editor.getButtonPane().setPadding(EDITOR_BUTTON_PANE_PADDING);
 
 			// Add list-view editor to content
@@ -1943,23 +1905,26 @@ public class ComparisonDialog
 			getContentPane().setPadding(CONTENT_PANE_PADDING);
 
 			// Create button: OK
-			Button okButton = new Button(OK_STR);
+			Button okButton = Buttons.hNoShrink(OK_STR);
 			okButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 			okButton.setOnAction(event ->
 			{
-				result = listView.getItems();
+				result = tableView.getItems();
 				requestClose();
 			});
 			addButton(okButton, HPos.RIGHT);
 
 			// Create button: cancel
-			Button cancelButton = new Button(CANCEL_STR);
+			Button cancelButton = Buttons.hNoShrink(CANCEL_STR);
 			cancelButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 			cancelButton.setOnAction(event -> requestClose());
 			addButton(cancelButton, HPos.RIGHT);
 
 			// Fire 'cancel' button if Escape key is pressed; fire 'OK' button if Ctrl+Enter is pressed
 			setKeyFireButton(cancelButton, okButton);
+
+			// Apply style sheet to scene
+			applyStyleSheet();
 		}
 
 		//--------------------------------------------------------------
@@ -2028,9 +1993,12 @@ public class ComparisonDialog
 			// Set properties
 			setResizable(true);
 
+			// Set style class on root node of scene graph
+			getScene().getRoot().getStyleClass().add(StyleClass.RESULT_DIALOG_ROOT);
+
 			// Create table view
 			SimpleTableView<ZipFileComparison.Difference> tableView =
-					new SimpleTableView<>(List.of(createDiffsColumn(), createPathnameColumn()));
+					new SimpleTableView<>(List.of(diffsColumn(), pathnameColumn()));
 			tableView.setPrefHeight(TABLE_VIEW_HEIGHT);
 			tableView.setItems(differences);
 
@@ -2044,7 +2012,7 @@ public class ComparisonDialog
 			StyleUtils.setProperty(getContentPane(), FxProperty.BORDER_WIDTH.getName(), "0");
 
 			// Create button: copy
-			Button copyButton = new Button(COPY_STR);
+			Button copyButton = Buttons.hNoShrink(COPY_STR);
 			copyButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 			copyButton.setOnAction(event ->
 			{
@@ -2071,7 +2039,7 @@ public class ComparisonDialog
 			addButton(copyButton, HPos.LEFT);
 
 			// Create button: close
-			Button closeButton = new Button(CLOSE_STR);
+			Button closeButton = Buttons.hNoShrink(CLOSE_STR);
 			closeButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 			closeButton.setOnAction(event -> requestClose());
 			addButton(closeButton, HPos.RIGHT);
@@ -2087,7 +2055,7 @@ public class ComparisonDialog
 	////////////////////////////////////////////////////////////////////
 
 		private static SimpleTableView.IColumn<ZipFileComparison.Difference, Set<ZipFileComparison.DiffKind>>
-				createDiffsColumn()
+				diffsColumn()
 		{
 			return new SimpleTableView.IColumn<>()
 			{
@@ -2187,7 +2155,7 @@ public class ComparisonDialog
 
 		//--------------------------------------------------------------
 
-		private static SimpleTableView.IColumn<ZipFileComparison.Difference, String> createPathnameColumn()
+		private static SimpleTableView.IColumn<ZipFileComparison.Difference, String> pathnameColumn()
 		{
 			return new SimpleTableView.IColumn<>()
 			{
@@ -2206,7 +2174,7 @@ public class ComparisonDialog
 				@Override
 				public double getPrefWidth()
 				{
-					return TextUtils.textWidthCeil("M".repeat(50));
+					return TextUtils.textHeightCeil(32.0);
 				}
 
 				@Override
@@ -2237,6 +2205,76 @@ public class ComparisonDialog
 
 		//--------------------------------------------------------------
 
+	}
+
+	//==================================================================
+
+////////////////////////////////////////////////////////////////////////
+//  Image data
+////////////////////////////////////////////////////////////////////////
+
+	/**
+	 * PNG image data.
+	 */
+
+	private interface ImgData
+	{
+		byte[]	INCLUDE	=
+		{
+			(byte)0x89, (byte)0x50, (byte)0x4E, (byte)0x47, (byte)0x0D, (byte)0x0A, (byte)0x1A, (byte)0x0A,
+			(byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0D, (byte)0x49, (byte)0x48, (byte)0x44, (byte)0x52,
+			(byte)0x00, (byte)0x00, (byte)0x00, (byte)0x10, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x10,
+			(byte)0x08, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x1F, (byte)0xF3, (byte)0xFF,
+			(byte)0x61, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x8A, (byte)0x49, (byte)0x44, (byte)0x41,
+			(byte)0x54, (byte)0x78, (byte)0x5E, (byte)0xCD, (byte)0x93, (byte)0xDD, (byte)0x09, (byte)0x80,
+			(byte)0x30, (byte)0x0C, (byte)0x84, (byte)0x6F, (byte)0x21, (byte)0x5D, (byte)0xD9, (byte)0x17,
+			(byte)0xAD, (byte)0x75, (byte)0x09, (byte)0x11, (byte)0x1C, (byte)0x40, (byte)0x37, (byte)0xB0,
+			(byte)0x6E, (byte)0xE0, (byte)0x02, (byte)0x52, (byte)0x7B, (byte)0xE2, (byte)0x4F, (byte)0xC9,
+			(byte)0x83, (byte)0x8A, (byte)0x55, (byte)0xE8, (byte)0xC1, (byte)0xF7, (byte)0x12, (byte)0x2E,
+			(byte)0x47, (byte)0x5A, (byte)0x12, (byte)0xE0, (byte)0x13, (byte)0x29, (byte)0xA4, (byte)0x8E,
+			(byte)0x1E, (byte)0x1A, (byte)0x06, (byte)0x15, (byte)0xC6, (byte)0x4B, (byte)0xE8, (byte)0xA1,
+			(byte)0x37, (byte)0x47, (byte)0xE2, (byte)0x07, (byte)0xF4, (byte)0xA8, (byte)0x31, (byte)0xA3,
+			(byte)0x79, (byte)0x08, (byte)0xBD, (byte)0x0A, (byte)0xDD, (byte)0x19, (byte)0x50, (byte)0xBA,
+			(byte)0x54, (byte)0x69, (byte)0x72, (byte)0xB4, (byte)0x53, (byte)0x6B, (byte)0x89, (byte)0xAC,
+			(byte)0xAF, (byte)0x68, (byte)0x0C, (byte)0x67, (byte)0x00, (byte)0xC7, (byte)0x92, (byte)0x06,
+			(byte)0x87, (byte)0xDD, (byte)0x24, (byte)0xEB, (byte)0x5B, (byte)0x80, (byte)0x89, (byte)0x30,
+			(byte)0x80, (byte)0xEF, (byte)0xBD, (byte)0xD3, (byte)0xF1, (byte)0x27, (byte)0xBF, (byte)0x04,
+			(byte)0x48, (byte)0xF6, (byte)0x26, (byte)0x59, (byte)0x8F, (byte)0x31, (byte)0x20, (byte)0x78,
+			(byte)0x91, (byte)0xDE, (byte)0xAC, (byte)0x72, (byte)0xE1, (byte)0xAF, (byte)0x32, (byte)0x0F,
+			(byte)0x83, (byte)0xBB, (byte)0xCD, (byte)0xB1, (byte)0xE4, (byte)0xF1, (byte)0x48, (byte)0xE8,
+			(byte)0x61, (byte)0x73, (byte)0xE6, (byte)0x1F, (byte)0x53, (byte)0x80, (byte)0x16, (byte)0xA2,
+			(byte)0x4B, (byte)0x93, (byte)0x44, (byte)0xAB, (byte)0x23, (byte)0x49, (byte)0x6A, (byte)0x00,
+			(byte)0x00, (byte)0x00, (byte)0x00, (byte)0x49, (byte)0x45, (byte)0x4E, (byte)0x44, (byte)0xAE,
+			(byte)0x42, (byte)0x60, (byte)0x82
+		};
+
+		byte[]	EXCLUDE	=
+		{
+			(byte)0x89, (byte)0x50, (byte)0x4E, (byte)0x47, (byte)0x0D, (byte)0x0A, (byte)0x1A, (byte)0x0A,
+			(byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0D, (byte)0x49, (byte)0x48, (byte)0x44, (byte)0x52,
+			(byte)0x00, (byte)0x00, (byte)0x00, (byte)0x10, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x10,
+			(byte)0x08, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x1F, (byte)0xF3, (byte)0xFF,
+			(byte)0x61, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x83, (byte)0x49, (byte)0x44, (byte)0x41,
+			(byte)0x54, (byte)0x78, (byte)0x5E, (byte)0xDD, (byte)0x93, (byte)0x4D, (byte)0x0A, (byte)0x83,
+			(byte)0x30, (byte)0x18, (byte)0x44, (byte)0xDF, (byte)0x85, (byte)0xF4, (byte)0xFE, (byte)0x5B,
+			(byte)0x15, (byte)0x63, (byte)0xBB, (byte)0xB2, (byte)0x27, (byte)0xD0, (byte)0xF4, (byte)0x14,
+			(byte)0xAE, (byte)0x44, (byte)0x33, (byte)0x4A, (byte)0x8B, (byte)0x46, (byte)0xD4, (byte)0xD6,
+			(byte)0x1F, (byte)0x10, (byte)0x07, (byte)0xDE, (byte)0x26, (byte)0xCC, (byte)0x0C, (byte)0x59,
+			(byte)0xCC, (byte)0x07, (byte)0x47, (byte)0x28, (byte)0x86, (byte)0x30, (byte)0x83, (byte)0xD7,
+			(byte)0x03, (byte)0xEC, (byte)0x13, (byte)0xDE, (byte)0x4B, (byte)0xC8, (byte)0x93, (byte)0x3A,
+			(byte)0x6F, (byte)0x04, (byte)0xC1, (byte)0xB7, (byte)0x40, (byte)0xE1, (byte)0x12, (byte)0x6A,
+			(byte)0xFB, (byte)0x23, (byte)0x85, (byte)0xC3, (byte)0x40, (byte)0xFE, (byte)0xC9, (byte)0xA3,
+			(byte)0x56, (byte)0xDF, (byte)0xB4, (byte)0x86, (byte)0xFB, (byte)0x4D, (byte)0xD9, (byte)0xA7,
+			(byte)0xD9, (byte)0x56, (byte)0xA0, (byte)0x4C, (byte)0x17, (byte)0x96, (byte)0xAE, (byte)0x53,
+			(byte)0x50, (byte)0x25, (byte)0x49, (byte)0xB3, (byte)0x26, (byte)0x79, (byte)0xCE, (byte)0x2B,
+			(byte)0xF8, (byte)0x87, (byte)0x1B, (byte)0x14, (byte)0x8C, (byte)0x86, (byte)0xA4, (byte)0x6D,
+			(byte)0x6B, (byte)0x9E, (byte)0xBE, (byte)0x69, (byte)0x8E, (byte)0xC9, (byte)0x94, (byte)0x75,
+			(byte)0x18, (byte)0x7A, (byte)0xD0, (byte)0x4F, (byte)0xFC, (byte)0xE3, (byte)0xF1, (byte)0x91,
+			(byte)0x47, (byte)0x5E, (byte)0x33, (byte)0x3C, (byte)0xA6, (byte)0x3D, (byte)0x6A, (byte)0x01,
+			(byte)0x59, (byte)0x7E, (byte)0x87, (byte)0x90, (byte)0x85, (byte)0x0B, (byte)0x2E, (byte)0xBA,
+			(byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x49, (byte)0x45, (byte)0x4E, (byte)0x44,
+			(byte)0xAE, (byte)0x42, (byte)0x60, (byte)0x82
+		};
 	}
 
 	//==================================================================

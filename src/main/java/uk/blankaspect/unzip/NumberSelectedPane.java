@@ -75,31 +75,31 @@ public class NumberSelectedPane
 			FxProperty.TEXT_FILL,
 			ColourKey.TEXT,
 			CssSelector.builder()
-						.cls(StyleClass.NUMBER_SELECTED_PANE)
-						.build()
+					.cls(StyleClass.NUMBER_SELECTED_PANE)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.BACKGROUND_COLOUR,
 			ColourKey.BACKGROUND,
 			CssSelector.builder()
-						.cls(StyleClass.NUMBER_SELECTED_PANE)
-						.build()
+					.cls(StyleClass.NUMBER_SELECTED_PANE)
+					.build()
 		),
 		ColourProperty.of
 		(
 			FxProperty.BORDER_COLOUR,
 			ColourKey.BORDER,
 			CssSelector.builder()
-						.cls(StyleClass.NUMBER_SELECTED_PANE)
-						.build()
+					.cls(StyleClass.NUMBER_SELECTED_PANE)
+					.build()
 		)
 	);
 
 	/** CSS style classes. */
 	private interface StyleClass
 	{
-		String	NUMBER_SELECTED_PANE	= StyleConstants.CLASS_PREFIX + "unzip-number-selected-pane";
+		String	NUMBER_SELECTED_PANE	= StyleConstants.APP_CLASS_PREFIX + "number-selected-pane";
 	}
 
 	/** Keys of colours that are used in colour properties. */
@@ -167,12 +167,12 @@ public class NumberSelectedPane
 ////////////////////////////////////////////////////////////////////////
 
 	/**
-	 * Returns the colour that is associated with the specified key in the colour map of the selected theme of the
+	 * Returns the colour that is associated with the specified key in the colour map of the current theme of the
 	 * {@linkplain StyleManager style manager}.
 	 *
 	 * @param  key
 	 *           the key of the desired colour.
-	 * @return the colour that is associated with {@code key} in the colour map of the selected theme of the style
+	 * @return the colour that is associated with {@code key} in the colour map of the current theme of the style
 	 *         manager, or {@link StyleManager#DEFAULT_COLOUR} if there is no such colour.
 	 */
 

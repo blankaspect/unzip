@@ -37,11 +37,11 @@ import uk.blankaspect.common.basictree.StringNode;
 
 import uk.blankaspect.common.filesystem.PathnameUtils;
 
+import uk.blankaspect.common.misc.SystemUtils;
+
 import uk.blankaspect.common.string.StringUtils;
 
 import uk.blankaspect.ui.jfx.locationchooser.FileMatcher;
-
-import uk.blankaspect.ui.jfx.style.StyleManager;
 
 //----------------------------------------------------------------------
 
@@ -56,7 +56,7 @@ public class Preferences
 //  Constants
 ////////////////////////////////////////////////////////////////////////
 
-	private static final	int	DEFAULT_CELL_VERTICAL_PADDING	= 2;
+	private static final	int		DEFAULT_CELL_VERTICAL_PADDING	= 2;
 
 	private static final	String	ZIP_FILES_STR	= "Zip files";
 
@@ -72,7 +72,6 @@ public class Preferences
 //  Instance variables
 ////////////////////////////////////////////////////////////////////////
 
-	private	String				themeId;
 	private	int					cellVerticalPadding;
 	private	int					columnHeaderPopUpDelay;
 	private	List<String>		zipFilenameSuffixes;
@@ -89,14 +88,14 @@ public class Preferences
 	public Preferences()
 	{
 		// Call alternative constructor
-		this(StyleManager.DEFAULT_THEME_ID, DEFAULT_CELL_VERTICAL_PADDING, ZipFileTableView.DEFAULT_HEADER_CELL_POP_UP_DELAY,
-			 List.of(Constants.ZIP_FILENAME_EXTENSION), System.getProperty("user.home", "."), null, Collections.emptyList());
+		this(DEFAULT_CELL_VERTICAL_PADDING, ZipFileTableView.DEFAULT_HEADER_CELL_POP_UP_DELAY,
+			 List.of(Constants.ZIP_FILENAME_EXTENSION), SystemUtils.userHomeDirectoryPathname(), null,
+			 Collections.emptyList());
 	}
 
 	//------------------------------------------------------------------
 
 	public Preferences(
-		String								themeId,
 		int									cellVerticalPadding,
 		int									columnHeaderPopUpDelay,
 		Collection<String>					zipFilenameSuffixes,
@@ -105,7 +104,6 @@ public class Preferences
 		Collection<? extends FileEditor>	fileEditors)
 	{
 		// Initialise instance variables
-		this.themeId = themeId;
 		this.cellVerticalPadding = cellVerticalPadding;
 		this.columnHeaderPopUpDelay = columnHeaderPopUpDelay;
 		this.zipFilenameSuffixes = new ArrayList<>(zipFilenameSuffixes);
@@ -122,21 +120,6 @@ public class Preferences
 ////////////////////////////////////////////////////////////////////////
 //  Instance methods
 ////////////////////////////////////////////////////////////////////////
-
-	public String getThemeId()
-	{
-		return themeId;
-	}
-
-	//------------------------------------------------------------------
-
-	public void setThemeId(
-		String	id)
-	{
-		themeId = id;
-	}
-
-	//------------------------------------------------------------------
 
 	public int getCellVerticalPadding()
 	{

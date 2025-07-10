@@ -193,7 +193,9 @@ public class ZipFileEntry
 
 	public LocalDateTime getDateTime()
 	{
-		return (timestamp < 0) ? null : LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault());
+		return (timestamp < 0)
+				? null
+				: LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault());
 	}
 
 	//------------------------------------------------------------------

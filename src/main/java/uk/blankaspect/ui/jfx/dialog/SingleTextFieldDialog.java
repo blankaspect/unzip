@@ -25,7 +25,6 @@ import javafx.geometry.HPos;
 import javafx.geometry.Pos;
 
 import javafx.scene.control.Button;
-import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 
@@ -34,6 +33,10 @@ import javafx.scene.layout.Priority;
 
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
+
+import uk.blankaspect.ui.jfx.button.Buttons;
+
+import uk.blankaspect.ui.jfx.label.Labels;
 
 import uk.blankaspect.ui.jfx.window.WindowUtils;
 
@@ -131,14 +134,14 @@ public class SingleTextFieldDialog
 		HBox.setHgrow(textField, Priority.ALWAYS);
 
 		// Create control pane
-		HBox controlPane = new HBox(CONTROL_PANE_H_GAP, new Label(labelText), textField);
+		HBox controlPane = new HBox(CONTROL_PANE_H_GAP, Labels.hNoShrink(labelText), textField);
 		controlPane.setAlignment(Pos.CENTER);
 
 		// Add control pane to content pane
 		addContent(controlPane);
 
 		// Create button: OK
-		okButton = new Button(OK_STR);
+		okButton = Buttons.hNoShrink(OK_STR);
 		okButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 		okButton.setOnAction(event ->
 		{
@@ -157,16 +160,13 @@ public class SingleTextFieldDialog
 		updateOkButton();
 
 		// Create button: cancel
-		Button cancelButton = new Button(CANCEL_STR);
+		Button cancelButton = Buttons.hNoShrink(CANCEL_STR);
 		cancelButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 		cancelButton.setOnAction(event -> requestClose());
 		addButton(cancelButton, HPos.RIGHT);
 
 		// Fire 'cancel' button if Escape key is pressed; fire 'OK' button if Ctrl+Enter is pressed
 		setKeyFireButton(cancelButton, okButton);
-
-		// Resize dialog to scene
-		sizeToScene();
 
 		// When dialog is shown, prevent its height from changing; request focus on text field
 		addEventHandler(WindowEvent.WINDOW_SHOWN, event ->
