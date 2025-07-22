@@ -35,6 +35,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 
 import javafx.scene.layout.ColumnConstraints;
@@ -92,7 +93,6 @@ import uk.blankaspect.ui.jfx.style.RuleSetBuilder;
 import uk.blankaspect.ui.jfx.style.StyleConstants;
 import uk.blankaspect.ui.jfx.style.StyleManager;
 
-import uk.blankaspect.ui.jfx.tabbedpane.TabPane2;
 import uk.blankaspect.ui.jfx.tabbedpane.TabPaneUtils;
 
 import uk.blankaspect.ui.jfx.textfield.FilterFactory;
@@ -219,7 +219,7 @@ public class PreferencesDialog
 ////////////////////////////////////////////////////////////////////////
 
 	private	Preferences	result;
-	private	TabPane2	tabPane;
+	private	TabPane		tabPane;
 
 ////////////////////////////////////////////////////////////////////////
 //  Static initialiser
@@ -247,7 +247,7 @@ public class PreferencesDialog
 		getScene().getRoot().getStyleClass().add(StyleClass.PREFERENCES_DIALOG_ROOT);
 
 		// Create tabbed pane
-		tabPane = new TabPane2();
+		tabPane = new TabPane();
 		tabPane.setBorder(SceneUtils.createSolidBorder(getColour(PaneStyle.ColourKey.PANE_BORDER), Side.BOTTOM));
 		tabPane.setTabMinWidth(MIN_TAB_WIDTH);
 		tabPane.getStyleClass().add(StyleClass.TABBED_PANE);
