@@ -418,7 +418,7 @@ public class ListViewEditor<T>
 							break;
 
 						case MOVE_UP:
-							button.setDisable(!singleSelection && (index < 1));
+							button.setDisable(!singleSelection || (index < 1));
 							break;
 
 						case MOVE_DOWN:
