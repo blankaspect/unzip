@@ -32,8 +32,6 @@ import java.util.Map;
 
 import java.util.function.Predicate;
 
-import java.util.stream.Stream;
-
 import javafx.application.Platform;
 
 import javafx.beans.InvalidationListener;
@@ -1182,10 +1180,7 @@ public class ZipFileTableView
 		protected static Column forKey(
 			String	key)
 		{
-			return Stream.of(values())
-					.filter(value -> value.getKey().equals(key))
-					.findFirst()
-					.orElse(null);
+			return Arrays.stream(values()).filter(value -> value.getKey().equals(key)).findFirst().orElse(null);
 		}
 
 		//--------------------------------------------------------------

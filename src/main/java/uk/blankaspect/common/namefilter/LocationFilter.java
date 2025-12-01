@@ -25,12 +25,11 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
 import java.util.regex.PatternSyntaxException;
-
-import java.util.stream.Stream;
 
 import uk.blankaspect.common.exception2.BaseException;
 
@@ -547,10 +546,7 @@ public class LocationFilter
 		public static Kind forKey(
 			String	key)
 		{
-			return Stream.of(values())
-					.filter(value -> value.key.equals(key))
-					.findFirst()
-					.orElse(null);
+			return Arrays.stream(values()).filter(value -> value.key.equals(key)).findFirst().orElse(null);
 		}
 
 		//--------------------------------------------------------------

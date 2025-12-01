@@ -58,13 +58,24 @@ public class Preferences
 
 	private static final	int		DEFAULT_CELL_VERTICAL_PADDING	= 2;
 
+	private static final	boolean		DEFAULT_COMBO_BOX_COMMIT_ON_FOCUS_LOST	= true;
+
+	private static final	List<String>	DEFAULT_FILENAME_SUFFIXES	= List.of
+	(
+		".jar",
+		Constants.ZIP_FILENAME_EXTENSION
+	);
+
 	private static final	String	ZIP_FILES_STR	= "Zip files";
 
 	private interface PropertyKey
 	{
+		String	COMBO_BOX							= "comboBox";
+		String	COMMIT_ON_FOCUS_LOST				= "commitOnFocusLost";
 		String	DEFAULT_EXTRACTION_DIRECTORY		= "defaultExtractionDirectory";
 		String	FILE_EDITOR_EXTRACTION_DIRECTORY	= "fileEditorExtractionDirectory";
 		String	FILE_EDITORS						= "fileEditors";
+		String	USER_INTERFACE						= "userInterface";
 		String	ZIP_FILENAME_SUFFIXES				= "zipFilenameSuffixes";
 	}
 
@@ -74,6 +85,7 @@ public class Preferences
 
 	private	int					cellVerticalPadding;
 	private	int					columnHeaderPopUpDelay;
+	private	boolean				comboBoxCommitOnFocusLost;
 	private	List<String>		zipFilenameSuffixes;
 	private	FileMatcher			zipFileFilter;
 	private	Predicate<Path>		zipFileDragAndDropFilter;
@@ -89,8 +101,8 @@ public class Preferences
 	{
 		// Call alternative constructor
 		this(DEFAULT_CELL_VERTICAL_PADDING, ZipFileTableView.DEFAULT_HEADER_CELL_POP_UP_DELAY,
-			 List.of(Constants.ZIP_FILENAME_EXTENSION), SystemUtils.userHomeDirectoryPathname(), null,
-			 Collections.emptyList());
+			 DEFAULT_COMBO_BOX_COMMIT_ON_FOCUS_LOST, DEFAULT_FILENAME_SUFFIXES, SystemUtils.userHomeDirectoryPathname(),
+			 null, Collections.emptyList());
 	}
 
 	//------------------------------------------------------------------
@@ -98,6 +110,7 @@ public class Preferences
 	public Preferences(
 		int									cellVerticalPadding,
 		int									columnHeaderPopUpDelay,
+		boolean								comboBoxCommitOnFocusLost,
 		Collection<String>					zipFilenameSuffixes,
 		String								defaultExtractionDirectory,
 		String								fileEditorExtractionDirectory,
@@ -106,6 +119,7 @@ public class Preferences
 		// Initialise instance variables
 		this.cellVerticalPadding = cellVerticalPadding;
 		this.columnHeaderPopUpDelay = columnHeaderPopUpDelay;
+		this.comboBoxCommitOnFocusLost = comboBoxCommitOnFocusLost;
 		this.zipFilenameSuffixes = new ArrayList<>(zipFilenameSuffixes);
 		this.defaultExtractionDirectory = defaultExtractionDirectory;
 		this.fileEditorExtractionDirectory = fileEditorExtractionDirectory;
@@ -147,6 +161,21 @@ public class Preferences
 		int	delay)
 	{
 		columnHeaderPopUpDelay = delay;
+	}
+
+	//------------------------------------------------------------------
+
+	public boolean isComboBoxCommitOnFocusLost()
+	{
+		return comboBoxCommitOnFocusLost;
+	}
+
+	//------------------------------------------------------------------
+
+	public void setComboBoxCommitOnFocusLost(
+		boolean	commitOnFocusLost)
+	{
+		comboBoxCommitOnFocusLost = commitOnFocusLost;
 	}
 
 	//------------------------------------------------------------------
@@ -212,6 +241,11 @@ public class Preferences
 	public void encode(
 		MapNode	rootNode)
 	{
+		// Encode combo box, commit on focus lost
+		rootNode.addMap(PropertyKey.USER_INTERFACE)
+				.addMap(PropertyKey.COMBO_BOX)
+				.addBoolean(PropertyKey.COMMIT_ON_FOCUS_LOST, comboBoxCommitOnFocusLost);
+
 		// Encode zip filename suffixes
 		if (!zipFilenameSuffixes.isEmpty())
 		{
@@ -255,9 +289,22 @@ public class Preferences
 	public void decode(
 		MapNode	rootNode)
 	{
+		// Decode combo box, commit on focus lost
+		String key = PropertyKey.USER_INTERFACE;
+		if (rootNode.hasMap(key))
+		{
+			MapNode uiNode = rootNode.getMapNode(key);
+			key = PropertyKey.COMBO_BOX;
+			if (uiNode.hasMap(key))
+			{
+				comboBoxCommitOnFocusLost = uiNode.getMapNode(key)
+						.getBoolean(PropertyKey.COMMIT_ON_FOCUS_LOST, DEFAULT_COMBO_BOX_COMMIT_ON_FOCUS_LOST);
+			}
+		}
+
 		// Decode zip filename suffixes
 		zipFilenameSuffixes.clear();
-		String key = PropertyKey.ZIP_FILENAME_SUFFIXES;
+		key = PropertyKey.ZIP_FILENAME_SUFFIXES;
 		if (rootNode.hasList(key))
 		{
 			for (StringNode node : rootNode.getListNode(key).stringNodes())

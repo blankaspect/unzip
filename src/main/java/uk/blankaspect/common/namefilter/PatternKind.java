@@ -18,7 +18,7 @@ package uk.blankaspect.common.namefilter;
 // IMPORTS
 
 
-import java.util.stream.Stream;
+import java.util.Arrays;
 
 import uk.blankaspect.common.misc.IStringKeyed;
 
@@ -136,10 +136,7 @@ public enum PatternKind
 	public static PatternKind forKey(
 		String	key)
 	{
-		return Stream.of(values())
-				.filter(value -> value.key.equals(key))
-				.findFirst()
-				.orElse(null);
+		return Arrays.stream(values()).filter(value -> value.key.equals(key)).findFirst().orElse(null);
 	}
 
 	//------------------------------------------------------------------
@@ -155,10 +152,7 @@ public enum PatternKind
 	public static PatternKind forShortKey(
 		char	key)
 	{
-		return Stream.of(values())
-				.filter(value -> value.getShortKey() == key)
-				.findFirst()
-				.orElse(null);
+		return Arrays.stream(values()).filter(value -> value.getShortKey() == key).findFirst().orElse(null);
 	}
 
 	//------------------------------------------------------------------

@@ -23,11 +23,9 @@ import java.lang.invoke.MethodHandles;
 import java.util.List;
 
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 
 import uk.blankaspect.ui.jfx.image.ImageCache;
 import uk.blankaspect.ui.jfx.image.ImageData;
-import uk.blankaspect.ui.jfx.image.ImageUtils;
 
 import uk.blankaspect.ui.jfx.style.AbstractTheme;
 
@@ -99,18 +97,6 @@ public class Images
 
 	private	Images()
 	{
-	}
-
-	//------------------------------------------------------------------
-
-////////////////////////////////////////////////////////////////////////
-//  Class methods
-////////////////////////////////////////////////////////////////////////
-
-	public static ImageView icon(
-		String	imageId)
-	{
-		return ImageUtils.smoothImageView(ImageData.image(imageId));
 	}
 
 	//------------------------------------------------------------------

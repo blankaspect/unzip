@@ -431,6 +431,9 @@ public class ComparisonDialog
 		// Set style class on root node of scene graph
 		getScene().getRoot().getStyleClass().add(StyleClass.COMPARISON_DIALOG_ROOT);
 
+		// Get preferences
+		Preferences preferences = UnzipApp.instance().getPreferences();
+
 		// Create control pane
 		GridPane controlPane = new GridPane();
 		controlPane.setHgap(CONTROL_H_GAP);
@@ -452,11 +455,11 @@ public class ComparisonDialog
 		int row = 0;
 
 		// File chooser: comparand file
-		FileMatcher matcher = UnzipApp.instance().getPreferences().getZipFileFilter();
+		FileMatcher matcher = preferences.getZipFileFilter();
 		LocationChooser comparandFileChooser = LocationChooser.forFiles();
 		comparandFileChooser.setDialogTitle(CHOOSE_FILE_STR);
 		comparandFileChooser.setDialogStateKey();
-		comparandFileChooser.addFilters(matcher, FileMatcher.ALL_FILES);
+		comparandFileChooser.addFilters(matcher, FileMatcher.ANY_FILE);
 		comparandFileChooser.setInitialFilter(0);
 
 		// Pathname field: comparand file
@@ -522,6 +525,7 @@ public class ComparisonDialog
 			}
 		},
 		state.paramSets);
+		paramSetComboBox.setCommitOnFocusLost(preferences.isComboBoxCommitOnFocusLost());
 		paramSetComboBox.setMaxWidth(Double.MAX_VALUE);
 		paramSetComboBox.getTextField().setPrefColumnCount(PARAM_SET_FIELD_NUM_COLUMNS);
 		TooltipDecorator.addTooltip(paramSetComboBox.getButton(), SHOW_LIST_STR);
@@ -776,7 +780,7 @@ public class ComparisonDialog
 		ImageDataButton.updateButtons(getScene());
 
 		// Get drag-and-drop filter
-		Predicate<Path> dragAndDropFilter = UnzipApp.instance().getPreferences().getZipFileDragAndDropFilter();
+		Predicate<Path> dragAndDropFilter = preferences.getZipFileDragAndDropFilter();
 
 		// Set drag-and-drop handler to accept a zip file
 		getScene().setOnDragOver(event ->
@@ -826,7 +830,7 @@ public class ComparisonDialog
 
 			// If saved name doesn't match a parameter set, set name on text field of combo box ...
 			if (paramSet == null)
-				paramSetComboBox.setText(state.paramSetName);
+				paramSetComboBox.setTextAndCommit(state.paramSetName);
 
 			// ... otherwise, select parameter set
 			else

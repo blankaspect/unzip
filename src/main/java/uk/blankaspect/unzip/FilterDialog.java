@@ -21,6 +21,7 @@ package uk.blankaspect.unzip;
 import java.lang.invoke.MethodHandles;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -184,11 +185,11 @@ public class FilterDialog
 			String pattern = (filter == null) ? null : filter.pattern;
 			Predicate<ZipFileEntry> zipFilter = StringUtils.isNullOrBlank(pattern) ? null : switch (filter.scope)
 			{
-				case FILENAME      ->
+				case FILENAME  ->
 						entry -> SimpleWildcardPatternMatcher.allIgnoreCase(pattern).match(entry.getFilename());
-				case DIRECTORY     ->
+				case DIRECTORY ->
 						entry -> SimpleWildcardPathnameMatcher.ignoreCase(pattern).match(entry.getDirectoryPathname());
-				case PATHNAME ->
+				case PATHNAME  ->
 						entry -> SimpleWildcardPathnameMatcher.ignoreCase(pattern).match(entry.getPathname());
 			};
 
@@ -222,6 +223,7 @@ public class FilterDialog
 		},
 		state.filters);
 		filterComboBox.setAllowNullCommit(true);
+		filterComboBox.setCommitOnFocusLost(UnzipApp.instance().getPreferences().isComboBoxCommitOnFocusLost());
 		filterComboBox.setMaxWidth(Double.MAX_VALUE);
 		filterComboBox.getTextField().setPrefColumnCount(PATTERN_FIELD_NUM_COLUMNS);
 		filterComboBox.valueProperty().addListener((observable, oldFilter, filter) ->
@@ -360,7 +362,7 @@ public class FilterDialog
 			// Set filter on combo box and scope spinner
 			Filter filter = state.filter;
 			if (filter != null)
-				filterComboBox.setText(filter.pattern);
+				filterComboBox.setTextAndCommit(filter.pattern);
 			scopeSpinner.setItem((filter == null) ? Scope.FILENAME : filter.scope);
 		});
 
@@ -750,8 +752,8 @@ public class FilterDialog
 					key = PropertyKey.PATTERN;
 					if (node.hasString(key))
 					{
-						Scope scope = node.getEnumValue(Scope.class, PropertyKey.SCOPE, value -> value.key,
-														Scope.FILENAME);
+						Scope scope =
+								node.getEnumValue(Scope.class, PropertyKey.SCOPE, value -> value.key, Scope.FILENAME);
 						filters.add(new Filter(node.getString(key), scope, true));
 					}
 				}
@@ -840,7 +842,7 @@ public class FilterDialog
 														TextUtils.textHeightCeil(PATTERN_COLUMN_WIDTH_FACTOR)),
 				new PersistableItemTableView.ColumnInfo(
 						SCOPE_STR,
-						TextUtils.maxWidthCeil(Stream.of(Scope.values()).map(Scope::toString).toList()))
+						TextUtils.maxWidthCeil(Arrays.stream(Scope.values()).map(Scope::toString).toList()))
 			);
 
 			// Create table view

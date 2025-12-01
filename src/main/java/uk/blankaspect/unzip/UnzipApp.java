@@ -74,6 +74,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 
 import uk.blankaspect.common.basictree.MapNode;
 
@@ -210,7 +211,7 @@ public class UnzipApp
 	private static final	double	TABLE_VIEW_HEIGHT	= 506.0;
 
 	/** The delay (in milliseconds) in a <i>WINDOW_SHOWN</i> event handler on platforms other than Windows. */
-	private static final	int		WINDOW_SHOWN_DELAY	= 150;
+	private static final	int		WINDOW_SHOWN_DELAY	= 200;
 
 	/** The delay (in milliseconds) in a <i>WINDOW_SHOWN</i> event handler on Windows. */
 	private static final	int		WINDOW_SHOWN_DELAY_WINDOWS	= 50;
@@ -1220,7 +1221,8 @@ public class UnzipApp
 
 		// Add menu item: exit
 		menuItem = new MenuItem(EXIT_STR);
-		menuItem.setOnAction(event -> Platform.exit());
+		menuItem.setOnAction(event ->
+				primaryStage.fireEvent(new WindowEvent(primaryStage, WindowEvent.WINDOW_CLOSE_REQUEST)));
 		menu.getItems().add(menuItem);
 
 		// Create menu: edit
@@ -1415,7 +1417,7 @@ public class UnzipApp
 
 		// Set filters of file chooser
 		openFileChooser.clearFilters();
-		openFileChooser.addFilters(preferences.getZipFileFilter(), FileMatcher.ALL_FILES);
+		openFileChooser.addFilters(preferences.getZipFileFilter(), FileMatcher.ANY_FILE);
 		openFileChooser.setInitialFilter(0);
 
 		// Set initial directory of file chooser
@@ -1730,9 +1732,9 @@ public class UnzipApp
 			if (((editor == null) || !editor.hasFilenamePatterns()) && (editorName != null))
 			{
 				editor = preferences.getFileEditors().stream()
-								.filter(ed -> editorName.equals(ed.getName()))
-								.findFirst()
-								.orElse(null);
+						.filter(ed -> editorName.equals(ed.getName()))
+						.findFirst()
+						.orElse(null);
 			}
 
 			// Create spinner: file editor

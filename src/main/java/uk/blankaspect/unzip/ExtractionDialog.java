@@ -18,8 +18,6 @@ package uk.blankaspect.unzip;
 // IMPORTS
 
 
-import java.io.File;
-
 import java.lang.invoke.MethodHandles;
 
 import java.nio.file.Files;
@@ -72,6 +70,7 @@ import uk.blankaspect.common.css.CssSelector;
 import uk.blankaspect.common.exception2.UnexpectedRuntimeException;
 
 import uk.blankaspect.common.filesystem.PathnameUtils;
+import uk.blankaspect.common.filesystem.PathUtils;
 
 import uk.blankaspect.common.function.IFunction0;
 import uk.blankaspect.common.function.IProcedure0;
@@ -100,6 +99,7 @@ import uk.blankaspect.ui.jfx.dialog.SimpleModalDialog;
 import uk.blankaspect.ui.jfx.image.MessageIcon24;
 import uk.blankaspect.ui.jfx.image.MessageIcon32;
 
+import uk.blankaspect.ui.jfx.locationchooser.DirectoryMatcher;
 import uk.blankaspect.ui.jfx.locationchooser.LocationChooser;
 
 import uk.blankaspect.ui.jfx.popup.MessagePopUp;
@@ -295,6 +295,9 @@ public class ExtractionDialog
 		// Set style class on root node of scene graph
 		getScene().getRoot().getStyleClass().add(StyleClass.EXTRACTION_DIALOG_ROOT);
 
+		// Get user preferences
+		Preferences preferences = UnzipApp.instance().getPreferences();
+
 		// Create equaliser for radio buttons
 		RadioButtonWidthEqualiser rbwe = new RadioButtonWidthEqualiser();
 
@@ -374,7 +377,7 @@ public class ExtractionDialog
 		};
 
 		// Create combo box for directory
-		SimpleComboBox<Directory> directoryComboBox = new SimpleComboBox<>(new SimpleComboBox.IConverter<>()
+		SimpleComboBox.IConverter<Directory> converter = new SimpleComboBox.IConverter<>()
 		{
 			@Override
 			public String toText(
@@ -396,8 +399,30 @@ public class ExtractionDialog
 			{
 				return (directory == null) ? null : directory.clone();
 			}
-		},
-		state.directories);
+		};
+		SimpleComboBox<Directory> directoryComboBox = new SimpleComboBox<>(converter, state.directories)
+		{
+			@Override
+			protected void onPaste(
+				Runnable	doPaste)
+			{
+				// If system clipboard contains the location of a directory, set it on text field ...
+				if (ClipboardUtils.locationMatches(DirectoryMatcher.ANY_DIRECTORY::matches))
+				{
+					// Get first location of a directory from system clipboard
+					Path location = ClipboardUtils.firstMatchingLocation(DirectoryMatcher.ANY_DIRECTORY::matches);
+
+					// Set absolute location on text field
+					if (location != null)
+						setTextAndCommit(PathUtils.absString(location));
+				}
+
+				// ... otherwise, paste text into text field
+				else
+					super.onPaste(doPaste);
+			}
+		};
+		directoryComboBox.setCommitOnFocusLost(preferences.isComboBoxCommitOnFocusLost());
 		directoryComboBox.setMaxWidth(Double.MAX_VALUE);
 		directoryComboBox.getTextField().setPrefColumnCount(DIRECTORY_FIELD_NUM_COLUMNS);
 		TooltipDecorator.addTooltip(directoryComboBox.getButton(), SHOW_LIST_STR);
@@ -463,7 +488,7 @@ public class ExtractionDialog
 
 			// Update directory combo box
 			if (directory != null)
-				directoryComboBox.setText(directory.toString());
+				directoryComboBox.setTextAndCommit(directory.toString());
 		});
 		TooltipDecorator.addTooltip(chooseDirectoryButton, CHOOSE_DIRECTORY_STR);
 		HBox.setMargin(chooseDirectoryButton, new Insets(0.0, 2.0, 0.0, 6.0));
@@ -535,9 +560,6 @@ public class ExtractionDialog
 											  editDirectoriesButton);
 		editableDirectoryPane.setAlignment(Pos.CENTER_LEFT);
 
-		// Get user preferences
-		Preferences preferences = UnzipApp.instance().getPreferences();
-
 		// Create function to return directory from selected control
 		IFunction0<Path> getDirectory = () ->
 		{
@@ -576,7 +598,7 @@ public class ExtractionDialog
 		IProcedure1<String> setDirectory = pathname ->
 		{
 			directoryKindButtons.get(DirectoryKind.EDITABLE).setSelected(true);
-			directoryComboBox.setText(pathname);
+			directoryComboBox.setTextAndCommit(pathname);
 		};
 
 		// Calculate preferred width of a directory label
@@ -769,7 +791,7 @@ public class ExtractionDialog
 			int index = OsUtils.isWindows() ? StringUtils.indexOfIgnoreCase(state.directory, pathnames)
 											: pathnames.indexOf(state.directory);
 			if (index < 0)
-				directoryComboBox.setText(state.directory);
+				directoryComboBox.setTextAndCommit(state.directory);
 			else
 				directoryComboBox.setValue(state.directories.get(index));
 		}
@@ -1148,7 +1170,7 @@ public class ExtractionDialog
 					{
 						if (i == directoryIndex)
 							index = directoriesNode.getNumElements();
-						directoriesNode.addString(directory.pathname);
+						directoriesNode.addString(Utils.normalisePathname(directory.pathname));
 					}
 				}
 
@@ -1180,7 +1202,7 @@ public class ExtractionDialog
 			{
 				directories.clear();
 				for (StringNode node : rootNode.getListNode(key).stringNodes())
-					directories.add(new Directory(node.getValue().replace('/', File.separatorChar), true));
+					directories.add(new Directory(Utils.denormalisePathname(node.getValue()), true));
 			}
 
 			// Decode directory index

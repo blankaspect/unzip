@@ -27,13 +27,12 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
-
-import java.util.stream.Stream;
 
 import java.util.zip.ZipEntry;
 
@@ -348,10 +347,7 @@ public class ZipFileComparison
 		public static Field forKey(
 			String	key)
 		{
-			return Stream.of(values())
-					.filter(value -> value.getKey().equals(key))
-					.findFirst()
-					.orElse(null);
+			return Arrays.stream(values()).filter(value -> value.getKey().equals(key)).findFirst().orElse(null);
 		}
 
 		//--------------------------------------------------------------

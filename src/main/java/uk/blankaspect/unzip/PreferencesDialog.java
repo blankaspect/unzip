@@ -32,6 +32,7 @@ import javafx.geometry.Side;
 import javafx.geometry.VPos;
 
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
@@ -43,6 +44,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 
 import javafx.scene.paint.Color;
 
@@ -62,6 +64,7 @@ import uk.blankaspect.common.string.StringUtils;
 
 import uk.blankaspect.ui.jfx.button.Buttons;
 
+import uk.blankaspect.ui.jfx.container.LabelTitledPane;
 import uk.blankaspect.ui.jfx.container.PaneStyle;
 import uk.blankaspect.ui.jfx.container.PathnamePane;
 
@@ -173,6 +176,8 @@ public class PreferencesDialog
 	private static final	String	REMOVE_EDITOR_QUESTION_STR				=
 			"Editor: %s" + MessageConstants.LABEL_SEPARATOR + "Do you want to remove the selected editor?";
 	private static final	String	REMOVE_STR								= "Remove";
+	private static final	String	COMBO_BOX_STR							= "Combo box";
+	private static final	String	COMMIT_ON_FOCUS_LOST_STR				= "Commit value when combo box loses focus";
 
 	/** CSS colour properties. */
 	private static final	List<ColourProperty>	COLOUR_PROPERTIES	= List.of
@@ -342,6 +347,24 @@ public class PreferencesDialog
 		getTab(TabId.VIEW).setContent(viewPane);
 
 
+		//----  Tab: user interface
+
+		// Check box: commit on focus lost
+		CheckBox commitOnFocusLostCheckBox = new CheckBox(COMMIT_ON_FOCUS_LOST_STR);
+		commitOnFocusLostCheckBox.setSelected(preferences.isComboBoxCommitOnFocusLost());
+
+		// Pane: commit on focus lost
+		StackPane commitOnFocusLostPane = new StackPane(commitOnFocusLostCheckBox);
+		commitOnFocusLostPane.setPadding(CONTROL_PANE_PADDING);
+
+		// Titled pane: combo box
+		LabelTitledPane comboBoxTitledPane = new LabelTitledPane(COMBO_BOX_STR, commitOnFocusLostPane);
+		comboBoxTitledPane.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+
+		// Set content of tab
+		getTab(TabId.USER_INTERFACE).setContent(new StackPane(comboBoxTitledPane));
+
+
 		//----  Tab: zip files
 
 		// Create list view of zip filename suffixes
@@ -498,7 +521,7 @@ public class PreferencesDialog
 
 		// Create list view of file editors
 		SimpleTextListView<FileEditor> fileEditorListView =
-				new SimpleTextListView<>(preferences.getFileEditors(), editor -> editor.getName());
+				new SimpleTextListView<>(preferences.getFileEditors(), FileEditor::getName);
 		fileEditorListView.setPrefSize(FILE_EDITOR_LIST_VIEW_WIDTH, FILE_EDITOR_LIST_VIEW_HEIGHT);
 		fileEditorListView.setMaxWidth(Region.USE_PREF_SIZE);
 
@@ -573,6 +596,7 @@ public class PreferencesDialog
 			result = new Preferences(
 				cellVerticalPaddingSpinner.getValue(),
 				columnHeaderPopUpDelaySpinner.getValue(),
+				commitOnFocusLostCheckBox.isSelected(),
 				filenameSuffixListViewEditor.getItems(),
 				defaultExtDirectory,
 				fileEditorExtDirectory,
@@ -685,6 +709,11 @@ public class PreferencesDialog
 		VIEW
 		(
 			"View"
+		),
+
+		USER_INTERFACE
+		(
+			"User interface"
 		),
 
 		ZIP_FILENAME_SUFFIXES

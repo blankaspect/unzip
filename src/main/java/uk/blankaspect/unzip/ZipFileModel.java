@@ -339,7 +339,7 @@ public class ZipFileModel
 				if (taskStatus.isCancelled())
 					break;
 
-				// if entry is directory, update directory count ...
+				// If entry is directory, update directory count ...
 				if (entry.isDirectory())
 					++numDirectories;
 

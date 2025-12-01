@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import javafx.application.Platform;
 
@@ -310,7 +311,14 @@ public class SimpleComboBox<T>
 		getStyleClass().add(StyleClass.SIMPLE_COMBO_BOX);
 
 		// Create text field
-		textField = new TextField();
+		textField = new TextField()
+		{
+			@Override
+			public void paste()
+			{
+				onPaste(() -> super.paste());
+			}
+		};
 		HBox.setHgrow(textField, Priority.ALWAYS);
 
 		// Create list view
@@ -652,6 +660,15 @@ public class SimpleComboBox<T>
 
 	//------------------------------------------------------------------
 
+	public void setTextAndCommit(
+		String	text)
+	{
+		setText(text);
+		commitValue();
+	}
+
+	//------------------------------------------------------------------
+
 	public List<T> getItems()
 	{
 		return Collections.unmodifiableList(items);
@@ -799,6 +816,22 @@ public class SimpleComboBox<T>
 			// Fire 'action' event
 			fireEvent(new ActionEvent());
 		}
+	}
+
+	//------------------------------------------------------------------
+
+	protected void onPaste(
+		Runnable	doPaste)
+	{
+		// Get content of text field
+		String text = textField.getText();
+
+		// Paste text into text field
+		doPaste.run();
+
+		// If content of text field has changed, commit value
+		if (!Objects.equals(text, textField.getText()))
+			commitValue();
 	}
 
 	//------------------------------------------------------------------
