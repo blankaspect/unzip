@@ -775,13 +775,13 @@ public class ZipFileTableView
 		if (entry != null)
 		{
 			PropertiesPane.create()
-							.padding(new Insets(2.0))
-							.nameConverter(name -> name.chars().allMatch(ch -> Character.isUpperCase(ch))
-																								? name
-																								: name.toLowerCase())
-							.properties1(entry.getProperties())
-							.dialogMaxInitialWidth(PROPERTIES_DIALOG_MAX_INITIAL_WIDTH)
-							.showDialog(getWindow(), ZIP_ENTRY_PROPERTIES_KEY, PROPERTIES_STR);
+					.padding(new Insets(2.0))
+					.nameConverter(name ->
+							name.chars().allMatch(ch -> Character.isUpperCase(ch)) ? name : name.toLowerCase())
+					.valueLabelHasContextMenu(true)
+					.properties1(entry.getProperties())
+					.dialogMaxInitialWidth(PROPERTIES_DIALOG_MAX_INITIAL_WIDTH)
+					.showModalDialog(getWindow(), ZIP_ENTRY_PROPERTIES_KEY, PROPERTIES_STR);
 		}
 	}
 

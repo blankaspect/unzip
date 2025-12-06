@@ -1471,8 +1471,9 @@ public class UnzipApp
 			PropertiesPane.create()
 					.padding(new Insets(2.0))
 					.nameConverter(name -> name.toLowerCase())
+					.valueLabelHasContextMenu(true)
 					.properties1(zipFile.getProperties())
-					.showDialog(primaryStage, ZIP_FILE_PROPERTIES_KEY, PROPERTIES_STR);
+					.showModalDialog(primaryStage, ZIP_FILE_PROPERTIES_KEY, PROPERTIES_STR);
 		}
 	}
 
