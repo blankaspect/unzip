@@ -295,9 +295,10 @@ public class InputZipFile
 	 * @return a list of the entries of this zip file.
 	 */
 
-	public List<? extends ZipEntry> getEntries()
+	@SuppressWarnings("unchecked")
+	public List<ZipEntry> getEntries()
 	{
-		return Collections.list(zipFile.entries());
+		return (List<ZipEntry>)Collections.list(zipFile.entries());
 	}
 
 	//------------------------------------------------------------------

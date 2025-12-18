@@ -234,7 +234,7 @@ public class PreferencesDialog
 	{
 		// Register the style properties of this class and its dependencies with the style manager
 		StyleManager.INSTANCE.register(PreferencesDialog.class, COLOUR_PROPERTIES, RULE_SETS,
-									   PaneStyle.class, ListViewStyle.class);
+									   ListViewStyle.class);
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -471,7 +471,7 @@ public class PreferencesDialog
 		defaultExtDirectoryField.setLocationMatcher(PathnameField.DIRECTORY_MATCHER);
 
 		// Create pathname pane: default extraction directory
-		PathnamePane defaultExtDirectoryPane = new PathnamePane(defaultExtDirectoryField, event ->
+		PathnamePane defaultExtDirectoryPane = new PathnamePane(defaultExtDirectoryField, true, event ->
 		{
 			// Set initial directory of directory chooser from content of directory field
 			defaultExtDirectoryField.initChooser(defaultExtDirectoryChooser, DEFAULT_DIRECTORY);
@@ -498,7 +498,7 @@ public class PreferencesDialog
 		fileEditorExtDirectoryField.setLocationMatcher(PathnameField.DIRECTORY_MATCHER);
 
 		// Create pathname pane: file-editor extraction directory
-		PathnamePane fileEditorExtDirectoryPane = new PathnamePane(fileEditorExtDirectoryField, event ->
+		PathnamePane fileEditorExtDirectoryPane = new PathnamePane(fileEditorExtDirectoryField, true, event ->
 		{
 			// Set initial directory of directory chooser from content of directory field
 			fileEditorExtDirectoryField.initChooser(fileEditorExtDirectoryChooser, DEFAULT_DIRECTORY);
@@ -797,8 +797,8 @@ public class PreferencesDialog
 		private static final	String	COMMAND_STR				= "Command";
 		private static final	String	FILENAME_PATTERNS_STR	= "Filename patterns";
 		private static final	String	REMOVE_PATTERN_STR		= "Remove pattern";
-		private static final	String	REMOVE_QUESTION_STR		= "Pattern: %s" + MessageConstants.LABEL_SEPARATOR
-																	+ "Do you want to remove the selected pattern?";
+		private static final	String	REMOVE_QUESTION_STR		=
+				"Pattern: %s" + MessageConstants.LABEL_SEPARATOR + "Do you want to remove the selected pattern?";
 		private static final	String	REMOVE_STR				= "Remove";
 
 	////////////////////////////////////////////////////////////////////

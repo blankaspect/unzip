@@ -468,7 +468,7 @@ public class ComparisonDialog
 		comparandFileField.setLocationMatcher(matcher::matches);
 
 		// Pathname pane: comparand file
-		PathnamePane comparandFilePane = new PathnamePane(comparandFileField, event ->
+		PathnamePane comparandFilePane = new PathnamePane(comparandFileField, true, event ->
 		{
 			// Set initial directory and filename of file chooser
 			comparandFileField.initChooser(comparandFileChooser, state.directory, DEFAULT_DIRECTORY);
@@ -1798,9 +1798,9 @@ public class ComparisonDialog
 		private static final	Insets	CONTENT_PANE_PADDING	= new Insets(2.0);
 
 		private static final	String	REMOVE_PARAM_SET_STR	= "Remove parameter set";
-		private static final	String	REMOVE_QUESTION_STR		= "Parameter set: %s" + MessageConstants.LABEL_SEPARATOR
-																	+ "Do you want to remove the selected "
-																	+ "parameter set?";
+		private static final	String	REMOVE_QUESTION_STR		=
+				"Parameter set: %s" + MessageConstants.LABEL_SEPARATOR
+					+ "Do you want to remove the selected parameter set?";
 		private static final	String	REMOVE_STR				= "Remove";
 		private static final	String	SAVE_SELECTED_STR		= "Save selected parameter sets";
 		private static final	String	DONT_SAVE_SELECTED_STR	= "Don't save selected parameter sets";

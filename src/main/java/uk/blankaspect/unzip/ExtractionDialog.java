@@ -765,9 +765,6 @@ public class ExtractionDialog
 			event.consume();
 		});
 
-		// When dialog is shown, prevent its height from changing
-		setOnShown(event -> WindowUtils.preventHeightChange(this));
-
 		// Save dialog state when dialog is closed
 		setOnHiding(event ->
 		{
@@ -842,6 +839,22 @@ public class ExtractionDialog
 ////////////////////////////////////////////////////////////////////////
 //  Instance methods : overriding methods
 ////////////////////////////////////////////////////////////////////////
+
+	/**
+	 * Prevents the height of this dialog from changing.
+	 */
+
+	@Override
+	protected void onWindowShown()
+	{
+		// Call superclass method
+		super.onWindowShown();
+
+		// Prevent height of window from changing
+		WindowUtils.preventHeightChange(this);
+	}
+
+	//------------------------------------------------------------------
 
 	@Override
 	protected Result getResult()
@@ -1258,8 +1271,8 @@ public class ExtractionDialog
 
 		private static final	String	DIRECTORY_STR			= "Directory";
 		private static final	String	REMOVE_DIRECTORY_STR	= "Remove directory";
-		private static final	String	REMOVE_QUESTION_STR		= "Directory: %s" + MessageConstants.LABEL_SEPARATOR
-																	+ "Do you want to remove the selected directory?";
+		private static final	String	REMOVE_QUESTION_STR		=
+				"Directory: %s" + MessageConstants.LABEL_SEPARATOR + "Do you want to remove the selected directory?";
 		private static final	String	REMOVE_STR				= "Remove";
 		private static final	String	SAVE_SELECTED_STR		= "Save selected directories";
 		private static final	String	DONT_SAVE_SELECTED_STR	= "Don't save selected directories";
@@ -1470,7 +1483,7 @@ public class ExtractionDialog
 					new PathnameField((directory == null) ? null : directory.pathname, DIRECTORY_FIELD_NUM_COLUMNS);
 
 			// Create pathname pane: directory
-			PathnamePane directoryPane = new PathnamePane(directoryField, event ->
+			PathnamePane directoryPane = new PathnamePane(directoryField, true, event ->
 			{
 				// Set initial directory of directory chooser from content of pathname field
 				directoryField.setLocationMatcher(PathnameField.DIRECTORY_MATCHER);

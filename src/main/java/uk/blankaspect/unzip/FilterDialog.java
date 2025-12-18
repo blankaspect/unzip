@@ -353,13 +353,9 @@ public class FilterDialog
 		// Update images of image buttons
 		ImageDataButton.updateButtons(getScene());
 
-		// When dialog is shown, prevent its height from changing; set saved filter on combo box and scope spinner
+		// When dialog is shown, set saved filter on combo box and scope spinner
 		setOnShown(event ->
 		{
-			// Prevent height of dialog from changing
-			WindowUtils.preventHeightChange(this);
-
-			// Set filter on combo box and scope spinner
 			Filter filter = state.filter;
 			if (filter != null)
 				filterComboBox.setTextAndCommit(filter.pattern);
@@ -413,6 +409,26 @@ public class FilterDialog
 		MapNode	mapNode)
 	{
 		state.decodeTree(mapNode);
+	}
+
+	//------------------------------------------------------------------
+
+////////////////////////////////////////////////////////////////////////
+//  Instance methods : overriding methods
+////////////////////////////////////////////////////////////////////////
+
+	/**
+	 * Prevents the height of this dialog from changing.
+	 */
+
+	@Override
+	protected void onWindowShown()
+	{
+		// Call superclass method
+		super.onWindowShown();
+
+		// Prevent height of window from changing
+		WindowUtils.preventHeightChange(this);
 	}
 
 	//------------------------------------------------------------------
@@ -809,8 +825,8 @@ public class FilterDialog
 
 		// Miscellaneous strings
 		private static final	String	REMOVE_FILTER_STR		= "Remove filter";
-		private static final	String	REMOVE_QUESTION_STR		= "Filter: %s" + MessageConstants.LABEL_SEPARATOR
-																	+ "Do you want to remove the selected filter?";
+		private static final	String	REMOVE_QUESTION_STR		=
+				"Filter: %s" + MessageConstants.LABEL_SEPARATOR + "Do you want to remove the selected filter?";
 		private static final	String	REMOVE_STR				= "Remove";
 		private static final	String	SAVE_SELECTED_STR		= "Save selected filters";
 		private static final	String	DONT_SAVE_SELECTED_STR	= "Don't save selected filters";
