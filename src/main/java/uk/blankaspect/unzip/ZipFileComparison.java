@@ -183,11 +183,11 @@ public class ZipFileComparison
 			// Create file system for zip file
 			try
 			{
-				fileSystem = FileSystems.newFileSystem(zipFile.getLocation());
+				fileSystem = FileSystems.newFileSystem(zipFile.location());
 			}
 			catch (IOException e)
 			{
-				throw new FileException(ErrorMsg.FAILED_TO_CREATE_FILE_SYSTEM, e, zipFile.getLocation());
+				throw new FileException(ErrorMsg.FAILED_TO_CREATE_FILE_SYSTEM, e, zipFile.location());
 			}
 
 			// Update matchers of location filters

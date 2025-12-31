@@ -222,10 +222,10 @@ public class FilterDialog
 			}
 		},
 		state.filters);
-		filterComboBox.setAllowNullCommit(true);
-		filterComboBox.setCommitOnFocusLost(UnzipApp.instance().getPreferences().isComboBoxCommitOnFocusLost());
+		filterComboBox.allowNullCommit(true);
+		filterComboBox.commitOnFocusLost(UnzipApp.instance().getPreferences().isComboBoxCommitOnFocusLost());
 		filterComboBox.setMaxWidth(Double.MAX_VALUE);
-		filterComboBox.getTextField().setPrefColumnCount(PATTERN_FIELD_NUM_COLUMNS);
+		filterComboBox.textField().setPrefColumnCount(PATTERN_FIELD_NUM_COLUMNS);
 		filterComboBox.valueProperty().addListener((observable, oldFilter, filter) ->
 		{
 			// Prevent updates
@@ -241,7 +241,7 @@ public class FilterDialog
 			// Allow updates
 			updatingFilter = false;
 		});
-		TooltipDecorator.addTooltip(filterComboBox.getButton(), SHOW_LIST_STR);
+		TooltipDecorator.addTooltip(filterComboBox.button(), SHOW_LIST_STR);
 		HBox.setHgrow(filterComboBox, Priority.ALWAYS);
 
 		// Create button: add filter to list
@@ -250,13 +250,13 @@ public class FilterDialog
 
 		// Create procedure to update 'add filter to list' button
 		IProcedure0 updateAddFilterButton = () ->
-				addFilterButton.setDisable(StringUtils.isNullOrBlank(filterComboBox.getText()));
+				addFilterButton.setDisable(StringUtils.isNullOrBlank(filterComboBox.text()));
 
 		// Handle action on 'add filter to list' button
 		addFilterButton.setOnAction(event ->
 		{
 			// Get pattern from combo box
-			String pattern = filterComboBox.getText();
+			String pattern = filterComboBox.text();
 
 			// If there is a pattern, create filter and add it to list of items of combo box
 			if (!StringUtils.isNullOrBlank(pattern))
@@ -268,35 +268,35 @@ public class FilterDialog
 				if (save != null)
 				{
 					Filter filter = new Filter(pattern, scopeSpinner.getItem(), save);
-					List<Filter> items = new ArrayList<>(filterComboBox.getItems());
+					List<Filter> items = new ArrayList<>(filterComboBox.items());
 					int index = items.indexOf(filter);
 					if (index < 0)
 						items.add(filter);
 					else
 						items.set(index, filter);
-					filterComboBox.setItems(items);
-					filterComboBox.setValue(filter.clone());
+					filterComboBox.items(items);
+					filterComboBox.value(filter.clone());
 				}
 			}
 		});
 
 		// Update 'add filter to list' button when content of combo-box editor changes
-		filterComboBox.getTextField().textProperty().addListener(observable -> updateAddFilterButton.invoke());
+		filterComboBox.textField().textProperty().addListener(observable -> updateAddFilterButton.invoke());
 
 		// Create button: edit list of filters
 		ImageDataButton editFiltersButton = new ImageDataButton(Images.ImageId.PENCIL, EDIT_FILTERS_STR);
 		editFiltersButton.setOnAction(event ->
 		{
-			Filter filter = filterComboBox.getValue();
-			List<Filter> filters = new FilterListDialog(this, filterComboBox.getItems()).showDialog();
+			Filter filter = filterComboBox.value();
+			List<Filter> filters = new FilterListDialog(this, filterComboBox.items()).showDialog();
 			if (filters != null)
 			{
-				filterComboBox.setItems(filters);
+				filterComboBox.items(filters);
 				if (!filters.isEmpty())
 				{
 					int index = (filter == null) ? -1 : filters.indexOf(filter);
 					if (index < 0)
-						filterComboBox.setValue(null);
+						filterComboBox.value(null);
 					else
 						filterComboBox.selectIndex(index);
 				}
@@ -323,12 +323,12 @@ public class FilterDialog
 			filterComboBox.commitValue();
 
 			// Set scope on filter
-			Filter filter = filterComboBox.getValue();
+			Filter filter = filterComboBox.value();
 			if (filter != null)
 				filter.scope = scope;
 
 			// Apply filter to table view
-			applyFilter.invoke(filterComboBox.getValue());
+			applyFilter.invoke(filterComboBox.value());
 		});
 		controlPane.addRow(row++, new Label(SCOPE_STR), scopeSpinner);
 
@@ -367,9 +367,9 @@ public class FilterDialog
 		{
 			// Save state
 			state.restoreAndUpdate(this, true);
-			state.filter = filterComboBox.getValue();
+			state.filter = filterComboBox.value();
 			state.filters.clear();
-			state.filters.addAll(filterComboBox.getItems());
+			state.filters.addAll(filterComboBox.items());
 
 			// Clear filter
 			clearFilter();
@@ -439,7 +439,7 @@ public class FilterDialog
 
 	public void clearFilter()
 	{
-		filterComboBox.setValue(null);
+		filterComboBox.value(null);
 	}
 
 	//------------------------------------------------------------------

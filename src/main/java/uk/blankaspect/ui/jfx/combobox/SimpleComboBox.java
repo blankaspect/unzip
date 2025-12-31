@@ -20,7 +20,6 @@ package uk.blankaspect.ui.jfx.combobox;
 
 import java.lang.invoke.MethodHandles;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -270,7 +269,7 @@ public class SimpleComboBox<T>
 	private	ListAddPos				listAddPosition;
 	private	SimpleObjectProperty<T>	value;
 	private	int						valueIndex;
-	private	List<T>					items;
+	private	ObservableList<T>		items;
 	private	TextField				textField;
 	private	GraphicButton			button;
 	private	ListView<String>		listView;
@@ -303,6 +302,7 @@ public class SimpleComboBox<T>
 		listAddPosition = DEFAULT_LIST_ADD_POSITION;
 		value = new SimpleObjectProperty<>();
 		valueIndex = -1;
+		items = FXCollections.observableArrayList();
 
 		// Set properties
 		setSpacing(-1.0);
@@ -390,7 +390,7 @@ public class SimpleComboBox<T>
 				value.set(converter.copy(items.get(index)));
 
 				// Update text field
-				setText(listView.getItems().get(index));
+				text(listView.getItems().get(index));
 			}
 
 			// Hide pop-up
@@ -510,7 +510,7 @@ public class SimpleComboBox<T>
 				if (commitOnFocusLost)
 					commitValue();
 				else
-					textField.setText(converter.toText(getValue()));
+					textField.setText(converter.toText(value()));
 			}
 		});
 
@@ -521,8 +521,12 @@ public class SimpleComboBox<T>
 
 		// Create button that triggers list view
 		button = new GraphicButton(Shapes.tile(arrowhead, Math.ceil(textHeight)));
+		button.setDisable(true);
 		button.setOnAction(event -> showListView.invoke());
 		button.prefHeightProperty().bind(textField.heightProperty());
+
+		// Disable button if list of items is empty
+		items.addListener((InvalidationListener) observable -> button.setDisable(items.isEmpty()));
 
 		// Create pane to provide three-sided border around button
 		StackPane buttonPane = new StackPane(button);
@@ -553,7 +557,7 @@ public class SimpleComboBox<T>
 		this(converter);
 
 		// Set items
-		setItems(items);
+		items(items);
 	}
 
 	//------------------------------------------------------------------
@@ -596,14 +600,14 @@ public class SimpleComboBox<T>
 //  Instance methods
 ////////////////////////////////////////////////////////////////////////
 
-	public T getValue()
+	public T value()
 	{
 		return value.get();
 	}
 
 	//------------------------------------------------------------------
 
-	public void setValue(
+	public void value(
 		T	value)
 	{
 		// Update instance variables
@@ -611,7 +615,7 @@ public class SimpleComboBox<T>
 		this.value.set(value);
 
 		// Update text field
-		setText(converter.toText(value));
+		text(converter.toText(value));
 	}
 
 	//------------------------------------------------------------------
@@ -623,35 +627,35 @@ public class SimpleComboBox<T>
 
 	//------------------------------------------------------------------
 
-	public int getValueIndex()
+	public int valueIndex()
 	{
 		return valueIndex;
 	}
 
 	//------------------------------------------------------------------
 
-	public TextField getTextField()
+	public TextField textField()
 	{
 		return textField;
 	}
 
 	//------------------------------------------------------------------
 
-	public GraphicButton getButton()
+	public GraphicButton button()
 	{
 		return button;
 	}
 
 	//------------------------------------------------------------------
 
-	public String getText()
+	public String text()
 	{
 		return textField.getText();
 	}
 
 	//------------------------------------------------------------------
 
-	public void setText(
+	public void text(
 		String	text)
 	{
 		textField.setText(text);
@@ -663,20 +667,20 @@ public class SimpleComboBox<T>
 	public void setTextAndCommit(
 		String	text)
 	{
-		setText(text);
+		text(text);
 		commitValue();
 	}
 
 	//------------------------------------------------------------------
 
-	public List<T> getItems()
+	public List<T> items()
 	{
 		return Collections.unmodifiableList(items);
 	}
 
 	//------------------------------------------------------------------
 
-	public void setItems(
+	public void items(
 		Collection<? extends T>	items)
 	{
 		// Validate argument
@@ -684,7 +688,7 @@ public class SimpleComboBox<T>
 			throw new IllegalArgumentException("Null items");
 
 		// Update instance variable
-		this.items = new ArrayList<>(items);
+		this.items.setAll(items);
 
 		// Clear selection
 		selectIndex(-1);
@@ -692,7 +696,7 @@ public class SimpleComboBox<T>
 
 	//------------------------------------------------------------------
 
-	public void setCommitOnFocusLost(
+	public void commitOnFocusLost(
 		boolean	commit)
 	{
 		commitOnFocusLost = commit;
@@ -700,7 +704,7 @@ public class SimpleComboBox<T>
 
 	//------------------------------------------------------------------
 
-	public void setAllowNullCommit(
+	public void allowNullCommit(
 		boolean	allow)
 	{
 		allowNullCommit = allow;
@@ -708,7 +712,7 @@ public class SimpleComboBox<T>
 
 	//------------------------------------------------------------------
 
-	public void setListMatch(
+	public void lListMatch(
 		ListMatch	match)
 	{
 		// Validate argument
@@ -721,7 +725,7 @@ public class SimpleComboBox<T>
 
 	//------------------------------------------------------------------
 
-	public void setListAddPos(
+	public void listAddPos(
 		ListAddPos	position)
 	{
 		// Validate argument
@@ -745,7 +749,7 @@ public class SimpleComboBox<T>
 		this.value.set(value);
 
 		// Update text field
-		setText(converter.toText(value));
+		text(converter.toText(value));
 	}
 
 	//------------------------------------------------------------------

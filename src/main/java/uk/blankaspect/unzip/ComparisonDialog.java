@@ -525,18 +525,18 @@ public class ComparisonDialog
 			}
 		},
 		state.paramSets);
-		paramSetComboBox.setCommitOnFocusLost(preferences.isComboBoxCommitOnFocusLost());
+		paramSetComboBox.commitOnFocusLost(preferences.isComboBoxCommitOnFocusLost());
 		paramSetComboBox.setMaxWidth(Double.MAX_VALUE);
-		paramSetComboBox.getTextField().setPrefColumnCount(PARAM_SET_FIELD_NUM_COLUMNS);
-		TooltipDecorator.addTooltip(paramSetComboBox.getButton(), SHOW_LIST_STR);
+		paramSetComboBox.textField().setPrefColumnCount(PARAM_SET_FIELD_NUM_COLUMNS);
+		TooltipDecorator.addTooltip(paramSetComboBox.button(), SHOW_LIST_STR);
 		HBox.setHgrow(paramSetComboBox, Priority.ALWAYS);
 
 		// Create function to return index of named parameter set in list
 		IFunction1<Integer, String> findParamSet = name ->
 		{
-			for (int i = 0; i < paramSetComboBox.getItems().size(); i++)
+			for (int i = 0; i < paramSetComboBox.items().size(); i++)
 			{
-				if (name.equals(paramSetComboBox.getItems().get(i).getName()))
+				if (name.equals(paramSetComboBox.items().get(i).getName()))
 					return i;
 			}
 			return -1;
@@ -545,7 +545,7 @@ public class ComparisonDialog
 		// Create function to return parameter set from UI components
 		IFunction1<ComparisonParams, Boolean> createParamSet = persistent ->
 		{
-			String name = paramSetComboBox.getText();
+			String name = paramSetComboBox.text();
 			if (name == null)
 				name = "";
 			return createNamedParamSet.invoke(name, persistent);
@@ -557,13 +557,13 @@ public class ComparisonDialog
 
 		// Create procedure to update 'add parameter set to list' button
 		IProcedure0 updateAddParamSetButton = () ->
-				addParamSetButton.setDisable(StringUtils.isNullOrBlank(paramSetComboBox.getText()));
+				addParamSetButton.setDisable(StringUtils.isNullOrBlank(paramSetComboBox.text()));
 
 		// Handle action on 'add parameter set to list' button
 		addParamSetButton.setOnAction(event ->
 		{
 			// Get text from combo box
-			String name = paramSetComboBox.getText();
+			String name = paramSetComboBox.text();
 
 			// If there is text, create parameter set and add it to list of items of combo box
 			if (!StringUtils.isNullOrBlank(name))
@@ -580,35 +580,35 @@ public class ComparisonDialog
 													   String.format(ASK_UPDATE_PARAM_SET_STR, name), UPDATE_STR))
 					{
 						ComparisonParams paramSet = createParamSet.invoke(save);
-						List<ComparisonParams> items = new ArrayList<>(paramSetComboBox.getItems());
+						List<ComparisonParams> items = new ArrayList<>(paramSetComboBox.items());
 						if (index < 0)
 							items.add(paramSet);
 						else
 							items.set(index, paramSet);
-						paramSetComboBox.setItems(items);
-						paramSetComboBox.setValue(paramSet.clone());
+						paramSetComboBox.items(items);
+						paramSetComboBox.value(paramSet.clone());
 					}
 				}
 			}
 		});
 
 		// Update 'add parameter set to list' button when content of combo-box editor changes
-		paramSetComboBox.getTextField().textProperty().addListener(observable -> updateAddParamSetButton.invoke());
+		paramSetComboBox.textField().textProperty().addListener(observable -> updateAddParamSetButton.invoke());
 
 		// Create button: edit list of parameter sets
 		ImageDataButton editParamSetsButton = new ImageDataButton(Images.ImageId.PENCIL, EDIT_PARAM_SETS_STR);
 		editParamSetsButton.setOnAction(event ->
 		{
-			ComparisonParams paramSet = paramSetComboBox.getValue();
-			List<ComparisonParams> paramSets = new ParamSetListDialog(this, paramSetComboBox.getItems()).showDialog();
+			ComparisonParams paramSet = paramSetComboBox.value();
+			List<ComparisonParams> paramSets = new ParamSetListDialog(this, paramSetComboBox.items()).showDialog();
 			if (paramSets != null)
 			{
-				paramSetComboBox.setItems(paramSets);
+				paramSetComboBox.items(paramSets);
 				if (!paramSets.isEmpty())
 				{
 					int index = (paramSet == null) ? -1 : findParamSet.invoke(paramSet.getName());
 					if (index < 0)
-						paramSetComboBox.setValue(null);
+						paramSetComboBox.value(null);
 					else
 						paramSetComboBox.selectIndex(index);
 				}
@@ -704,7 +704,7 @@ public class ComparisonDialog
 		// Create procedure to update parameter set
 		IProcedure0 updateParamSet = () ->
 		{
-			ComparisonParams paramSet = paramSetComboBox.getValue();
+			ComparisonParams paramSet = paramSetComboBox.value();
 			if (paramSet != null)
 			{
 				// Set filters on list view
@@ -814,9 +814,9 @@ public class ComparisonDialog
 		setOnHiding(event ->
 		{
 			state.restoreAndUpdate(this, true);
-			state.paramSetName = paramSetComboBox.getText();
+			state.paramSetName = paramSetComboBox.text();
 			state.paramSets.clear();
-			state.paramSets.addAll(paramSetComboBox.getItems());
+			state.paramSets.addAll(paramSetComboBox.items());
 		});
 
 		// Process saved name of parameter set
@@ -834,7 +834,7 @@ public class ComparisonDialog
 
 			// ... otherwise, select parameter set
 			else
-				paramSetComboBox.setValue(paramSet);
+				paramSetComboBox.value(paramSet);
 		}
 
 		// Apply style sheet to scene

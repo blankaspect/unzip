@@ -53,6 +53,10 @@ public class InputZipFile
 //  Constants
 ////////////////////////////////////////////////////////////////////////
 
+	/** Miscellaneous strings. */
+	private static final	String	FILE_IS_OPEN_STR		= "File is already open";
+	private static final	String	FILE_IS_NOT_OPEN_STR	= "File is not open";
+
 	/** Error messages. */
 	private interface ErrorMsg
 	{
@@ -105,7 +109,7 @@ public class InputZipFile
 	 * @return the file-system location of this zip file.
 	 */
 
-	public Path getLocation()
+	public Path location()
 	{
 		return location;
 	}
@@ -118,7 +122,7 @@ public class InputZipFile
 	 * @return the {@link ZipFile} object that is associated with this zip file.
 	 */
 
-	public ZipFile getZipFile()
+	public ZipFile zipFile()
 	{
 		return zipFile;
 	}
@@ -152,7 +156,7 @@ public class InputZipFile
 	{
 		// Test whether file is open
 		if (isOpen())
-			throw new IllegalStateException("File is open");
+			throw new IllegalStateException(FILE_IS_OPEN_STR);
 
 		// Open file channel for reading
 		try
@@ -210,7 +214,7 @@ public class InputZipFile
 	{
 		// Test whether file is open
 		if (!isOpen())
-			throw new IllegalStateException("File is not open");
+			throw new IllegalStateException(FILE_IS_NOT_OPEN_STR);
 
 		// Close channel to unlock it
 		if (channel != null)

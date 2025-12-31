@@ -422,10 +422,10 @@ public class ExtractionDialog
 					super.onPaste(doPaste);
 			}
 		};
-		directoryComboBox.setCommitOnFocusLost(preferences.isComboBoxCommitOnFocusLost());
+		directoryComboBox.commitOnFocusLost(preferences.isComboBoxCommitOnFocusLost());
 		directoryComboBox.setMaxWidth(Double.MAX_VALUE);
-		directoryComboBox.getTextField().setPrefColumnCount(DIRECTORY_FIELD_NUM_COLUMNS);
-		TooltipDecorator.addTooltip(directoryComboBox.getButton(), SHOW_LIST_STR);
+		directoryComboBox.textField().setPrefColumnCount(DIRECTORY_FIELD_NUM_COLUMNS);
+		TooltipDecorator.addTooltip(directoryComboBox.button(), SHOW_LIST_STR);
 		HBox.setHgrow(directoryComboBox, Priority.ALWAYS);
 
 		// Create procedure to hide 'invalid pathname' pop-up
@@ -442,7 +442,7 @@ public class ExtractionDialog
 		IFunction0<Path> getEditableDirectory = () ->
 		{
 			Path directory = null;
-			String text = directoryComboBox.getText();
+			String text = directoryComboBox.text();
 			if (!StringUtils.isNullOrBlank(text))
 			{
 				String pathname = PathnameUtils.parsePathname(text);
@@ -498,13 +498,13 @@ public class ExtractionDialog
 
 		// Create procedure to update 'add directory to list' button
 		IProcedure0 updateAddDirectoryButton = () ->
-				addDirectoryButton.setDisable(StringUtils.isNullOrBlank(directoryComboBox.getText()));
+				addDirectoryButton.setDisable(StringUtils.isNullOrBlank(directoryComboBox.text()));
 
 		// Handle action on 'add directory to list' button
 		addDirectoryButton.setOnAction(event ->
 		{
 			// Get pathname from combo box
-			String pathname = directoryComboBox.getText();
+			String pathname = directoryComboBox.text();
 
 			// If there is text, create directory and add it to list of items of combo box
 			if (!StringUtils.isNullOrBlank(pathname))
@@ -516,36 +516,36 @@ public class ExtractionDialog
 				if (save != null)
 				{
 					Directory directory = new Directory(pathname, save);
-					List<Directory> items = new ArrayList<>(directoryComboBox.getItems());
+					List<Directory> items = new ArrayList<>(directoryComboBox.items());
 					int index = items.indexOf(directory);
 					if (index < 0)
 						items.add(directory);
 					else
 						items.set(index, directory);
-					directoryComboBox.setItems(items);
-					directoryComboBox.setValue(directory.clone());
+					directoryComboBox.items(items);
+					directoryComboBox.value(directory.clone());
 				}
 			}
 		});
 
 		// Update 'add directory to list' button when content of combo-box editor changes
-		directoryComboBox.getTextField().textProperty().addListener(observable -> updateAddDirectoryButton.invoke());
+		directoryComboBox.textField().textProperty().addListener(observable -> updateAddDirectoryButton.invoke());
 
 		// Create button: edit list of directories
 		ImageDataButton editDirectoriesButton = new ImageDataButton(Images.ImageId.PENCIL, EDIT_DIRECTORIES_STR);
 		editDirectoriesButton.setOnAction(event ->
 		{
-			Directory directory = directoryComboBox.getValue();
+			Directory directory = directoryComboBox.value();
 			List<Directory> directories =
-					new DirectoryListDialog(this, directoryChooser, directoryComboBox.getItems()).showDialog();
+					new DirectoryListDialog(this, directoryChooser, directoryComboBox.items()).showDialog();
 			if (directories != null)
 			{
-				directoryComboBox.setItems(directories);
+				directoryComboBox.items(directories);
 				if (!directories.isEmpty())
 				{
 					int index = (directory == null) ? -1 : directories.indexOf(directory);
 					if (index < 0)
-						directoryComboBox.setValue(null);
+						directoryComboBox.value(null);
 					else
 						directoryComboBox.selectIndex(index);
 				}
@@ -588,7 +588,7 @@ public class ExtractionDialog
 
 		// Hide 'invalid pathname' pop-up and update 'extract' button when content of text field of directory combo box
 		// changes
-		directoryComboBox.getTextField().textProperty().addListener(observable ->
+		directoryComboBox.textField().textProperty().addListener(observable ->
 		{
 			hideInvalidPathnamePopUp.invoke();
 			updateExtractButton.invoke();
@@ -770,10 +770,10 @@ public class ExtractionDialog
 		{
 			state.restoreAndUpdate(this, true);
 			state.directoryKind = (DirectoryKind)toggleGroup.getSelectedToggle().getUserData();
-			state.directory = directoryComboBox.getText();
+			state.directory = directoryComboBox.text();
 			state.directories.clear();
-			state.directories.addAll(directoryComboBox.getItems());
-			state.directoryIndex = directoryComboBox.getValueIndex();
+			state.directories.addAll(directoryComboBox.items());
+			state.directoryIndex = directoryComboBox.valueIndex();
 			state.flatten = flattenCheckBox.isSelected();
 		});
 
@@ -790,7 +790,7 @@ public class ExtractionDialog
 			if (index < 0)
 				directoryComboBox.setTextAndCommit(state.directory);
 			else
-				directoryComboBox.setValue(state.directories.get(index));
+				directoryComboBox.value(state.directories.get(index));
 		}
 
 		// Apply style sheet to scene

@@ -101,8 +101,6 @@ import uk.blankaspect.common.logging.LogLevel;
 
 import uk.blankaspect.common.misc.SystemUtils;
 
-import uk.blankaspect.common.os.OsUtils;
-
 import uk.blankaspect.common.resource.ResourceProperties;
 import uk.blankaspect.common.resource.ResourceUtils;
 
@@ -210,11 +208,8 @@ public class UnzipApp
 
 	private static final	double	TABLE_VIEW_HEIGHT	= 506.0;
 
-	/** The delay (in milliseconds) in a <i>WINDOW_SHOWN</i> event handler on platforms other than Windows. */
-	private static final	int		WINDOW_SHOWN_DELAY	= 200;
-
-	/** The delay (in milliseconds) in a <i>WINDOW_SHOWN</i> event handler on Windows. */
-	private static final	int		WINDOW_SHOWN_DELAY_WINDOWS	= 50;
+	/** The delay (in milliseconds) in a <i>WINDOW_SHOWN</i> event handler. */
+	private static final	int		WINDOW_SHOWN_DELAY	= 50;
 
 	/** The delay (in milliseconds) before making the main window visible by restoring its opacity. */
 	private static final	int		WINDOW_VISIBLE_DELAY	= 50;
@@ -420,7 +415,7 @@ public class UnzipApp
 
 	private static int getWindowShownDelay()
 	{
-		int delay = OsUtils.isWindows() ? WINDOW_SHOWN_DELAY_WINDOWS : WINDOW_SHOWN_DELAY;
+		int delay = WINDOW_SHOWN_DELAY;
 		String value = System.getProperty(SystemPropertyKey.WINDOW_SHOWN_DELAY);
 		if (value != null)
 		{
