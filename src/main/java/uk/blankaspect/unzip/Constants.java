@@ -37,7 +37,7 @@ public interface Constants
 	char	SEPARATOR_CHAR	= '/';
 
 	/** The formatter for the timestamp of a file. */
-	DateTimeFormatter	TIMESTAMP_FORMATTER	= DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss");
+	DateTimeFormatter	TIMESTAMP_FORMATTER	= DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
 	/** The filename extension of a zip file. */
 	String	ZIP_FILENAME_EXTENSION	= ".zip";

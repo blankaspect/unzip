@@ -188,11 +188,14 @@ public class ZipFileTableView
 		label. */
 	private static final	double	PLACEHOLDER_LABEL_FONT_SIZE_FACTOR	= 1.25;
 
-	/** The maximum initial width of the properties dialog. */
-	private static final	double	PROPERTIES_DIALOG_MAX_INITIAL_WIDTH	= 960.0;
-
 	/** The key that is used when storing the location of a zip-file entry properties dialog. */
 	private static final	String	ZIP_ENTRY_PROPERTIES_KEY	= "zipEntryProperties";
+
+	/** The padding around the properties pane. */
+	private static final	Insets	PROPERTIES_PANE_PADDING	= new Insets(2.0);
+
+	/** The maximum initial width of the properties dialog. */
+	private static final	double	PROPERTIES_DIALOG_MAX_INITIAL_WIDTH	= 960.0;
 
 	/** The key combination that invokes the editor on the selected item. */
 	private static final	KeyCombination	KEY_COMBO_EDIT_ITEM	=
@@ -775,7 +778,7 @@ public class ZipFileTableView
 		if (entry != null)
 		{
 			PropertiesPane.create()
-					.padding(new Insets(2.0))
+					.padding(PROPERTIES_PANE_PADDING)
 					.nameConverter(name ->
 							name.chars().allMatch(ch -> Character.isUpperCase(ch)) ? name : name.toLowerCase())
 					.valueLabelHasContextMenu(true)

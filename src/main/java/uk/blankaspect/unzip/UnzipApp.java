@@ -96,7 +96,7 @@ import uk.blankaspect.common.filesystem.PathUtils;
 import uk.blankaspect.common.function.IProcedure0;
 
 import uk.blankaspect.common.logging.Logger;
-import uk.blankaspect.common.logging.LoggerUtils;
+import uk.blankaspect.common.logging.Logging;
 import uk.blankaspect.common.logging.LogLevel;
 
 import uk.blankaspect.common.misc.SystemUtils;
@@ -203,16 +203,22 @@ public class UnzipApp
 
 	private static final	String	ZIP_FILE_PROPERTIES_KEY	= "zipFileProperties";
 
+	/** The padding around the properties pane. */
+	private static final	Insets	PROPERTIES_PANE_PADDING	= new Insets(2.0);
+
 	private static final	KeyCombination	KEY_COMBO_FILTER_DIALOG	=
 			new KeyCodeCombination(KeyCode.TAB, KeyCombination.CONTROL_DOWN);
 
 	private static final	double	TABLE_VIEW_HEIGHT	= 506.0;
 
-	/** The delay (in milliseconds) in a <i>WINDOW_SHOWN</i> event handler. */
-	private static final	int		WINDOW_SHOWN_DELAY	= 50;
-
-	/** The delay (in milliseconds) before making the main window visible by restoring its opacity. */
-	private static final	int		WINDOW_VISIBLE_DELAY	= 50;
+	/** A map from system-property keys to the default values of the corresponding delays (in milliseconds) in the
+		<i>WINDOW_SHOWN</i> event handler of the main window. */
+	private static final	Map<String, Integer>	MAIN_WINDOW_DELAYS	= Map.of
+	(
+		SystemPropertyKey.MAIN_WINDOW_DELAY_SIZE,     50,
+		SystemPropertyKey.MAIN_WINDOW_DELAY_LOCATION, 25,
+		SystemPropertyKey.MAIN_WINDOW_DELAY_OPACITY,  25
+	);
 
 	/** The margins that are applied to the visual bounds of each screen when determining whether the saved location of
 		the main window is within a screen. */
@@ -270,9 +276,11 @@ public class UnzipApp
 	/** Keys of system properties. */
 	private interface SystemPropertyKey
 	{
-		String	TEMP_DIR				= "java.io.tmpdir";
-		String	USE_STYLE_SHEET_FILE	= "useStyleSheetFile";
-		String	WINDOW_SHOWN_DELAY		= "windowShownDelay";
+		String	MAIN_WINDOW_DELAY_LOCATION	= "mainWindowDelay.location";
+		String	MAIN_WINDOW_DELAY_OPACITY	= "mainWindowDelay.opacity";
+		String	MAIN_WINDOW_DELAY_SIZE		= "mainWindowDelay.size";
+		String	TEMP_DIR					= "java.io.tmpdir";
+		String	USE_STYLE_SHEET_FILE		= "useStyleSheetFile";
 	}
 
 	/** Error messages. */
@@ -363,8 +371,8 @@ public class UnzipApp
 	static
 	{
 		// Initialise logger and open log file
-		LoggerUtils.openLogger(LOG_THRESHOLD, LOG_PARAMS,
-							   AppAuxDirectory.resolve(NAME_KEY, UnzipApp.class, LOG_FILENAME), LOG_NUM_RETAINED_LINES);
+		Logging.openLogger(LOG_THRESHOLD, LOG_PARAMS, AppAuxDirectory.resolve(NAME_KEY, UnzipApp.class, LOG_FILENAME),
+						   LOG_NUM_RETAINED_LINES);
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -408,15 +416,19 @@ public class UnzipApp
 	//------------------------------------------------------------------
 
 	/**
-	 * Returns the delay (in milliseconds) in a <i>WINDOW_SHOWN</i> event handler.
+	 * Returns the delay (in milliseconds) that is defined the system property with the specified key.
 	 *
-	 * @return the delay (in milliseconds) in a <i>WINDOW_SHOWN</i> event handler.
+	 * @param  key
+	 *           the key of the system property.
+	 * @return the delay (in milliseconds) that is defined the system property whose key is {@code key}, or a default
+	 *         value if there is no such property or the property value is not a valid integer.
 	 */
 
-	private static int getWindowShownDelay()
+	private static int getDelay(
+		String	key)
 	{
-		int delay = WINDOW_SHOWN_DELAY;
-		String value = System.getProperty(SystemPropertyKey.WINDOW_SHOWN_DELAY);
+		int delay = MAIN_WINDOW_DELAYS.get(key);
+		String value = System.getProperty(key);
 		if (value != null)
 		{
 			try
@@ -652,7 +664,7 @@ public class UnzipApp
 		primaryStage.setOnShown(event ->
 		{
 			// Set size and location of main window after a delay
-			ExecUtils.afterDelay(getWindowShownDelay(), () ->
+			ExecUtils.afterDelay(getDelay(SystemPropertyKey.MAIN_WINDOW_DELAY_SIZE), () ->
 			{
 				// Get size of window from saved state
 				Dimension2D size = mainWindowState.getSize();
@@ -664,38 +676,42 @@ public class UnzipApp
 					primaryStage.setHeight(size.getHeight());
 				}
 
-				// Get location of window from saved state
-				Point2D location = mainWindowState.getLocation();
-
-				// Invalidate location if top centre of window is not within a screen
-				double width = primaryStage.getWidth();
-				if ((location != null)
-						&& !SceneUtils.isWithinScreen(location.getX() + 0.5 * width, location.getY(), SCREEN_MARGINS))
-					location = null;
-
-				// If there is no location, centre window within primary screen
-				if (location == null)
-					location = SceneUtils.centreInScreen(width, primaryStage.getHeight());
-
-				// Set location of window
-				primaryStage.setX(location.getX());
-				primaryStage.setY(location.getY());
-
-				// Perform remaining initialisation after a delay
-				ExecUtils.afterDelay(WINDOW_VISIBLE_DELAY, () ->
+				// Set size and location of main window after a delay
+				ExecUtils.afterDelay(getDelay(SystemPropertyKey.MAIN_WINDOW_DELAY_LOCATION), () ->
 				{
-					// Make window visible
-					primaryStage.setOpacity(1.0);
+					// Get location of window from saved state
+					Point2D location = mainWindowState.getLocation();
 
-					// Report any configuration error
-					if (vars.configException != null)
+					// Invalidate location if top centre of window is not within a screen
+					double width = primaryStage.getWidth();
+					if ((location != null) && !SceneUtils.isWithinScreen(location.getX() + 0.5 * width, location.getY(),
+																		 SCREEN_MARGINS))
+						location = null;
+
+					// If there is no location, centre window within primary screen
+					if (location == null)
+						location = SceneUtils.centreInScreen(width, primaryStage.getHeight());
+
+					// Set location of window
+					primaryStage.setX(location.getX());
+					primaryStage.setY(location.getY());
+
+					// Perform remaining initialisation after a delay
+					ExecUtils.afterDelay(getDelay(SystemPropertyKey.MAIN_WINDOW_DELAY_OPACITY), () ->
 					{
-						Utils.showErrorMessage(primaryStage, SHORT_NAME + " : " + CONFIG_ERROR_STR,
-											   vars.configException);
-					}
+						// Make window visible
+						primaryStage.setOpacity(1.0);
 
-					// Perform remaining initialisation
-					initialise();
+						// Report any configuration error
+						if (vars.configException != null)
+						{
+							Utils.showErrorMessage(primaryStage, SHORT_NAME + " : " + CONFIG_ERROR_STR,
+												   vars.configException);
+						}
+
+						// Perform remaining initialisation
+						initialise();
+					});
 				});
 			});
 		});
@@ -1464,7 +1480,7 @@ public class UnzipApp
 		if (zipFile != null)
 		{
 			PropertiesPane.create()
-					.padding(new Insets(2.0))
+					.padding(PROPERTIES_PANE_PADDING)
 					.nameConverter(name -> name.toLowerCase())
 					.valueLabelHasContextMenu(true)
 					.properties1(zipFile.getProperties())
