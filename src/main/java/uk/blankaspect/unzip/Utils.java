@@ -24,8 +24,6 @@ import java.nio.file.Path;
 
 import java.text.DecimalFormat;
 
-import javafx.geometry.HPos;
-
 import javafx.stage.Window;
 
 import uk.blankaspect.common.basictree.MapNode;
@@ -188,7 +186,7 @@ public class Utils
 	{
 		return switch (MessageDialog.show(owner, title, MessageIcon32.QUESTION.get(),
 										  String.format(SAVE_BEYOND_SESSION_STR, itemStr),
-										  ButtonInfo.of(HPos.RIGHT, SAVE_STR, DONT_SAVE_STR, CANCEL_STR)))
+										  ButtonInfo.allRight(SAVE_STR, DONT_SAVE_STR, CANCEL_STR)))
 		{
 			case 0  -> Boolean.TRUE;
 			case 1  -> Boolean.FALSE;

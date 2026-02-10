@@ -20,10 +20,8 @@ package uk.blankaspect.unzip;
 
 import java.io.IOException;
 
-import java.nio.file.Files;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 
 import java.util.ArrayList;
@@ -65,9 +63,8 @@ public class ZipFileComparison
 	/** Error messages. */
 	private interface ErrorMsg
 	{
-		String	FILE_DOES_NOT_EXIST				= "The file does not exist.";
-		String	NOT_A_FILE						= "The location does not denote a regular file.";
-		String	FAILED_TO_CREATE_FILE_SYSTEM	= "Failed to create a file system for the file.";
+		String	FAILED_TO_CREATE_FILE_SYSTEM =
+				"Failed to create a file system for the file.";
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -91,12 +88,6 @@ public class ZipFileComparison
 		Set<Field>				fields)
 		throws BaseException
 	{
-		// Validate file
-		if (!Files.exists(file, LinkOption.NOFOLLOW_LINKS))
-			throw new FileException(ErrorMsg.FILE_DOES_NOT_EXIST, file);
-		if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS))
-			throw new FileException(ErrorMsg.NOT_A_FILE, file);
-
 		// Initialise list of differences between zip entries
 		List<Difference> differences = new ArrayList<>();
 

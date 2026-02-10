@@ -68,8 +68,6 @@ import javafx.scene.shape.Shape;
 
 import javafx.stage.Popup;
 
-import javafx.util.StringConverter;
-
 import uk.blankaspect.common.css.CssRuleSet;
 import uk.blankaspect.common.css.CssSelector;
 
@@ -107,9 +105,8 @@ public class SimpleComboBox<T>
 ////////////////////////////////////////////////////////////////////////
 
 	/**
-	 * A string converter whose type argument is {@link String} and whose {@link StringConverter#toString(Object)
-	 * toString(Object)} and {@link StringConverter#fromString(String) fromString(String)} methods return their argument
-	 * unchanged.
+	 * A string converter whose type argument is {@link String} and whose {@link IConverter#toText(Object)
+	 * toText(Object)} and {@link IConverter#fromText(String) fromText(String)} methods return their argument unchanged.
 	 */
 	public static final		IConverter<String>	IDENTITY_STRING_CONVERTER	= new IConverter<>()
 	{
@@ -201,9 +198,9 @@ public class SimpleComboBox<T>
 	private static final	KeyCombination	KEY_COMBO_LIST_TRIGGER	=
 			new KeyCodeCombination(KeyCode.SPACE, KeyCombination.CONTROL_DOWN);
 
-	/** The factor by which the height of the default font is multiplied in determining the size of the arrowhead icon
-		of the list-view trigger button. */
-	private static final	double	BUTTON_ARROWHEAD_SIZE_FACTOR	= 0.8;
+	/** The factor by which the height of the default font is multiplied in determining the size of the icon of the
+		list-view trigger button. */
+	private static final	double	BUTTON_ICON_SIZE_FACTOR	= 0.8;
 
 	/** CSS colour properties. */
 	private static final	List<ColourProperty>	COLOUR_PROPERTIES	= List.of
@@ -514,13 +511,13 @@ public class SimpleComboBox<T>
 			}
 		});
 
-		// Create arrowhead icon for button that triggers list view
+		// Create icon for button that triggers list view
 		double textHeight = TextUtils.textHeight();
-		Shape arrowhead = Shapes.arrowhead01(VHDirection.DOWN, BUTTON_ARROWHEAD_SIZE_FACTOR * textHeight);
-		arrowhead.setFill(getColour(ColourKey.LIST_BUTTON_ICON));
+		Shape buttonIcon = Shapes.arrowhead01(VHDirection.DOWN, BUTTON_ICON_SIZE_FACTOR * textHeight);
+		buttonIcon.setFill(getColour(ColourKey.LIST_BUTTON_ICON));
 
 		// Create button that triggers list view
-		button = new GraphicButton(Shapes.tile(arrowhead, Math.ceil(textHeight)));
+		button = new GraphicButton(Shapes.tile(buttonIcon, Math.ceil(textHeight)));
 		button.setDisable(true);
 		button.setOnAction(event -> showListView.invoke());
 		button.prefHeightProperty().bind(textField.heightProperty());
@@ -931,15 +928,39 @@ public class SimpleComboBox<T>
 	//  Methods
 	////////////////////////////////////////////////////////////////////
 
+		/**
+		 * Returns a textual representation of the specified item.
+		 *
+		 * @param  item
+		 *           the item for which a textual representation is desired.
+		 * @return a textual representation of the specified item, or {@code null} if {@code item} is not valid.
+		 */
+
 		String toText(
 			T	item);
 
 		//--------------------------------------------------------------
 
+		/**
+		 * Returns the item that is represented by the specified text.
+		 *
+		 * @param  text
+		 *           the text whose associated item is desired.
+		 * @return the item that is represented by {@code text}, or {@code null} if there is no such item.
+		 */
+
 		T fromText(
 			String	text);
 
 		//--------------------------------------------------------------
+
+		/**
+		 * Returns a copy of the specified item.  The default implementation of this method returns the argument itself.
+		 *
+		 * @param  item
+		 *           the item for which a copy is desired.
+		 * @return a copy of the specified item.
+		 */
 
 		default T copy(
 			T	item)

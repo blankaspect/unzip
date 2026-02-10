@@ -38,8 +38,6 @@ import uk.blankaspect.ui.jfx.button.Buttons;
 
 import uk.blankaspect.ui.jfx.label.Labels;
 
-import uk.blankaspect.ui.jfx.window.WindowUtils;
-
 //----------------------------------------------------------------------
 
 
@@ -268,7 +266,8 @@ public class SingleTextFieldDialog
 		super.onWindowShown();
 
 		// Prevent height of window from changing
-		WindowUtils.preventHeightChange(this);
+		setMinHeight(prefHeight());
+		setMaxHeight(prefHeight());
 	}
 
 	//------------------------------------------------------------------

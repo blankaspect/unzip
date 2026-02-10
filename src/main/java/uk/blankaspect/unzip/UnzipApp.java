@@ -99,6 +99,8 @@ import uk.blankaspect.common.logging.Logger;
 import uk.blankaspect.common.logging.Logging;
 import uk.blankaspect.common.logging.LogLevel;
 
+import uk.blankaspect.common.message.MessageConstants;
+
 import uk.blankaspect.common.misc.SystemUtils;
 
 import uk.blankaspect.common.resource.ResourceProperties;
@@ -251,8 +253,8 @@ public class UnzipApp
 	private static final	String	EXTRACT_FILES_STR		= "Extract files";
 	private static final	String	NUM_FILES_EXTRACTED_STR	= "Number of files extracted : ";
 	private static final	String	MODIFIED_FILE_STR		= "Modified file";
-	private static final	String	MODIFIED_MESSAGE_STR	= "The file '%s' has been modified externally.\n" +
-																"Do you want to reload the modified file?";
+	private static final	String	MODIFIED_RELOAD_STR	=
+			"The file has been modified externally.\nDo you want to reload the modified file?";
 	private static final	String	RELOAD_STR				= "Reload";
 	private static final	String	EDIT_ENTRY_STR			= "Edit entry";
 
@@ -315,7 +317,7 @@ public class UnzipApp
 //  Class variables
 ////////////////////////////////////////////////////////////////////////
 
-	/** The instance of this application. */
+	/** The single instance of this class. */
 	private static	UnzipApp	instance;
 
 	/** The index of the last thread that was created for a background task. */
@@ -663,7 +665,7 @@ public class UnzipApp
 		// When main window is shown, set its size and location after a delay
 		primaryStage.setOnShown(event ->
 		{
-			// Set size and location of main window after a delay
+			// Set size of main window after a delay
 			ExecUtils.afterDelay(getDelay(SystemPropertyKey.MAIN_WINDOW_DELAY_SIZE), () ->
 			{
 				// Get size of window from saved state
@@ -676,7 +678,7 @@ public class UnzipApp
 					primaryStage.setHeight(size.getHeight());
 				}
 
-				// Set size and location of main window after a delay
+				// Set location of main window after a delay
 				ExecUtils.afterDelay(getDelay(SystemPropertyKey.MAIN_WINDOW_DELAY_LOCATION), () ->
 				{
 					// Get location of window from saved state
@@ -1163,9 +1165,10 @@ public class UnzipApp
 						if (!reloadPending)
 						{
 							reloadPending = true;
+							String message = PathUtils.abs(file) + MessageConstants.LABEL_SEPARATOR
+									+ MODIFIED_RELOAD_STR;
 							if (ConfirmationDialog.show(primaryStage, MODIFIED_FILE_STR, MessageIcon32.QUESTION.get(),
-														String.format(MODIFIED_MESSAGE_STR, file.getFileName()),
-														RELOAD_STR))
+														message, RELOAD_STR))
 								openFile(file);
 							reloadPending = false;
 						}

@@ -31,7 +31,6 @@ import javafx.event.EventHandler;
 
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
-import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 
 import javafx.scene.control.Button;
@@ -52,13 +51,12 @@ import uk.blankaspect.common.function.IProcedure0;
 
 import uk.blankaspect.ui.jfx.button.Buttons;
 
+import uk.blankaspect.ui.jfx.dialog.DialogState;
 import uk.blankaspect.ui.jfx.dialog.SimpleModalDialog;
 
 import uk.blankaspect.ui.jfx.listview.SimpleTextListView;
 
 import uk.blankaspect.ui.jfx.selectionmodel.SelectionModelUtils;
-
-import uk.blankaspect.ui.jfx.window.WindowState;
 
 //----------------------------------------------------------------------
 
@@ -93,7 +91,7 @@ public class ReplaceFilesDialog
 //  Class variables
 ////////////////////////////////////////////////////////////////////////
 
-	private static	State	state	= new State();
+	private static	DialogState	state	= new DialogState(true, true);
 
 ////////////////////////////////////////////////////////////////////////
 //  Instance variables
@@ -113,7 +111,7 @@ public class ReplaceFilesDialog
 		boolean				flatten)
 	{
 		// Call superclass constructor
-		super(owner, REPLACE_FILES_STR, state.getLocator(), state.getSize());
+		super(owner, REPLACE_FILES_STR, state.locator(), state.getSize());
 
 		// Set properties
 		setResizable(true);
@@ -258,9 +256,9 @@ public class ReplaceFilesDialog
 	//------------------------------------------------------------------
 
 	public static void decodeState(
-		MapNode	mapNode)
+		MapNode	rootNode)
 	{
-		state.decodeTree(mapNode);
+		state.decodeTree(rootNode);
 	}
 
 	//------------------------------------------------------------------
@@ -276,53 +274,6 @@ public class ReplaceFilesDialog
 	}
 
 	//------------------------------------------------------------------
-
-////////////////////////////////////////////////////////////////////////
-//  Member classes : non-inner classes
-////////////////////////////////////////////////////////////////////////
-
-
-	// CLASS: STATE
-
-
-	private static class State
-		extends WindowState
-	{
-
-	////////////////////////////////////////////////////////////////////
-	//  Constructors
-	////////////////////////////////////////////////////////////////////
-
-		private State()
-		{
-			// Call superclass constructor
-			super(true, true);
-		}
-
-		//--------------------------------------------------------------
-
-	////////////////////////////////////////////////////////////////////
-	//  Instance methods
-	////////////////////////////////////////////////////////////////////
-
-		/**
-		 * Returns a locator function that returns the location from this dialog state.
-		 *
-		 * @return a locator function that returns the location from this dialog state, or {@code null} if the
-		 *         location is {@code null}.
-		 */
-
-		private ILocator getLocator()
-		{
-			Point2D location = getLocation();
-			return (location == null) ? null : (width, height) -> location;
-		}
-
-		//--------------------------------------------------------------
-
-	}
-
-	//==================================================================
 
 }
 

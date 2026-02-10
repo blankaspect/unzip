@@ -60,10 +60,17 @@ public class InputZipFile
 	/** Error messages. */
 	private interface ErrorMsg
 	{
-		String	FAILED_TO_OPEN_FILE			= "Failed to open the file.";
-		String	FAILED_TO_CLOSE_FILE		= "Failed to close the file.";
-		String	FAILED_TO_LOCK_FILE			= "Failed to lock the file.";
-		String	FILE_ACCESS_NOT_PERMITTED	= "Access to the file was not permitted.";
+		String	FAILED_TO_OPEN_FILE =
+				"Failed to open the file.";
+
+		String	FAILED_TO_CLOSE_FILE =
+				"Failed to close the file.";
+
+		String	FAILED_TO_LOCK_FILE =
+				"Failed to lock the file.";
+
+		String	FILE_ACCESS_NOT_PERMITTED =
+				"Access to the file was not permitted.";
 	}
 
 ////////////////////////////////////////////////////////////////////////

@@ -68,8 +68,11 @@ public class FileEditor
 
 	private interface ErrorMsg
 	{
-		String	INVALID_PATTERN		= "Pattern: %s\nThe pattern is invalid.";
-		String	UNRECOGNISED_SYNTAX	= "Syntax: %s\nThe pattern syntax is not recognised.";
+		String	INVALID_PATTERN =
+				"Pattern: %s\nThe pattern is invalid.";
+
+		String	UNRECOGNISED_SYNTAX =
+				"Syntax: %s\nThe pattern syntax is not recognised.";
 	}
 
 ////////////////////////////////////////////////////////////////////////

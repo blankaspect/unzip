@@ -32,7 +32,6 @@ import java.util.stream.Stream;
 import javafx.geometry.Dimension2D;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
-import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 
 import javafx.scene.control.Button;
@@ -75,6 +74,7 @@ import uk.blankaspect.ui.jfx.button.ImageDataButton;
 import uk.blankaspect.ui.jfx.combobox.SimpleComboBox;
 
 import uk.blankaspect.ui.jfx.dialog.ConfirmationDialog;
+import uk.blankaspect.ui.jfx.dialog.DialogState;
 import uk.blankaspect.ui.jfx.dialog.SimpleModalDialog;
 import uk.blankaspect.ui.jfx.dialog.SimpleModelessDialog;
 
@@ -87,9 +87,6 @@ import uk.blankaspect.ui.jfx.tableview.TableViewEditor;
 import uk.blankaspect.ui.jfx.text.TextUtils;
 
 import uk.blankaspect.ui.jfx.tooltip.TooltipDecorator;
-
-import uk.blankaspect.ui.jfx.window.WindowState;
-import uk.blankaspect.ui.jfx.window.WindowUtils;
 
 //----------------------------------------------------------------------
 
@@ -151,7 +148,7 @@ public class FilterDialog
 		Window	owner)
 	{
 		// Call superclass constructor
-		super(owner, ENTRY_FILTER_STR, state.getLocator(), state.getSize());
+		super(owner, ENTRY_FILTER_STR, state.locator(), state.getSize());
 
 		// Set properties
 		setResizable(true);
@@ -406,9 +403,9 @@ public class FilterDialog
 	//------------------------------------------------------------------
 
 	public static void decodeState(
-		MapNode	mapNode)
+		MapNode	rootNode)
 	{
-		state.decodeTree(mapNode);
+		state.decodeTree(rootNode);
 	}
 
 	//------------------------------------------------------------------
@@ -428,7 +425,8 @@ public class FilterDialog
 		super.onWindowShown();
 
 		// Prevent height of window from changing
-		WindowUtils.preventHeightChange(this);
+		setMinHeight(prefHeight());
+		setMaxHeight(prefHeight());
 	}
 
 	//------------------------------------------------------------------
@@ -655,7 +653,7 @@ public class FilterDialog
 
 
 	private static class State
-		extends WindowState
+		extends DialogState
 	{
 
 	////////////////////////////////////////////////////////////////////
@@ -774,25 +772,6 @@ public class FilterDialog
 					}
 				}
 			}
-		}
-
-		//--------------------------------------------------------------
-
-	////////////////////////////////////////////////////////////////////
-	//  Instance methods
-	////////////////////////////////////////////////////////////////////
-
-		/**
-		 * Returns a locator function that returns the location from this dialog state.
-		 *
-		 * @return a locator function that returns the location from this dialog state, or {@code null} if the location
-		 *         is {@code null}.
-		 */
-
-		private ILocator getLocator()
-		{
-			Point2D location = getLocation();
-			return (location == null) ? null : (width, height) -> location;
 		}
 
 		//--------------------------------------------------------------

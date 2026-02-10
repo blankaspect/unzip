@@ -131,6 +131,7 @@ import uk.blankaspect.ui.jfx.container.PathnamePane;
 import uk.blankaspect.ui.jfx.control.ControlUtils;
 
 import uk.blankaspect.ui.jfx.dialog.ConfirmationDialog;
+import uk.blankaspect.ui.jfx.dialog.DialogState;
 import uk.blankaspect.ui.jfx.dialog.ErrorDialog;
 import uk.blankaspect.ui.jfx.dialog.NotificationDialog;
 import uk.blankaspect.ui.jfx.dialog.SimpleModalDialog;
@@ -140,6 +141,8 @@ import uk.blankaspect.ui.jfx.font.FontUtils;
 import uk.blankaspect.ui.jfx.image.ImageData;
 import uk.blankaspect.ui.jfx.image.ImageUtils;
 import uk.blankaspect.ui.jfx.image.MessageIcon32;
+
+import uk.blankaspect.ui.jfx.io.IOUtils;
 
 import uk.blankaspect.ui.jfx.label.CheckLabel;
 import uk.blankaspect.ui.jfx.label.Labels;
@@ -175,8 +178,6 @@ import uk.blankaspect.ui.jfx.text.TextUtils;
 import uk.blankaspect.ui.jfx.textfield.PathnameField;
 
 import uk.blankaspect.ui.jfx.tooltip.TooltipDecorator;
-
-import uk.blankaspect.ui.jfx.window.WindowState;
 
 //----------------------------------------------------------------------
 
@@ -423,7 +424,7 @@ public class ComparisonDialog
 		ZipFileModel	zipFile)
 	{
 		// Call superclass constructor
-		super(owner, COMPARE_WITH_FILE_STR, state.getLocator(), state.getSize());
+		super(owner, COMPARE_WITH_FILE_STR, state.locator(), state.getSize());
 
 		// Set properties
 		setResizable(true);
@@ -730,11 +731,16 @@ public class ComparisonDialog
 		compareButton.getProperties().put(BUTTON_GROUP_KEY, BUTTON_GROUP1);
 		compareButton.setOnAction(event ->
 		{
+			// Test for file
 			Path file = comparandFileField.getLocation();
-			ComparisonParams paramSet = createParamSet.invoke(false);
+			if (!IOUtils.isExistingFile(file, this, COMPARE_FILES_STR))
+				return;
+
+			// Compare filtered zip entries of files and report result
 			try
 			{
 				// Get differences between filtered zip entries
+				ComparisonParams paramSet = createParamSet.invoke(false);
 				List<ZipFileComparison.Difference> differences =
 						ZipFileComparison.compare(zipFile, file, paramSet.getFilters(), paramSet.getFields());
 
@@ -855,9 +861,9 @@ public class ComparisonDialog
 	//------------------------------------------------------------------
 
 	public static void decodeState(
-		MapNode	mapNode)
+		MapNode	rootNode)
 	{
-		state.decodeTree(mapNode);
+		state.decodeTree(rootNode);
 	}
 
 	//------------------------------------------------------------------
@@ -889,7 +895,7 @@ public class ComparisonDialog
 
 
 	private static class State
-		extends WindowState
+		extends DialogState
 	{
 
 	////////////////////////////////////////////////////////////////////
@@ -988,25 +994,6 @@ public class ComparisonDialog
 					paramSets.add(paramSet);
 				}
 			}
-		}
-
-		//--------------------------------------------------------------
-
-	////////////////////////////////////////////////////////////////////
-	//  Instance methods
-	////////////////////////////////////////////////////////////////////
-
-		/**
-		 * Returns a locator function that returns the location from this dialog state.
-		 *
-		 * @return a locator function that returns the location from this dialog state, or {@code null} if the
-		 *         location is {@code null}.
-		 */
-
-		private ILocator getLocator()
-		{
-			Point2D location = getLocation();
-			return (location == null) ? null : (width, height) -> location;
 		}
 
 		//--------------------------------------------------------------

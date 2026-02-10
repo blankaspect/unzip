@@ -345,7 +345,30 @@ public class Preferences
 
 	private void updateFilenameSuffixes()
 	{
-		zipFileFilter = new FileMatcher(ZIP_FILES_STR, zipFilenameSuffixes);
+		// Create description for file filter
+		int maxLength = 80;
+		StringBuilder buffer = new StringBuilder(maxLength + 20);
+		buffer.append(ZIP_FILES_STR);
+		int index = buffer.length();
+		for (int i = 0; i < zipFilenameSuffixes.size(); i++)
+		{
+			buffer.append((i == 0) ? "  (" : ", ").append('*').append(zipFilenameSuffixes.get(i));
+			if (buffer.length() > maxLength)
+			{
+				buffer.setLength(index);
+				if (i > 0)
+					buffer.append(", ...");
+				break;
+			}
+			index = buffer.length();
+		}
+		if (buffer.length() > ZIP_FILES_STR.length())
+			buffer.append(')');
+
+		// Update filter for file chooser
+		zipFileFilter = new FileMatcher(buffer.toString(), zipFilenameSuffixes);
+
+		// Update drag-and-drop filter
 		zipFileDragAndDropFilter = location ->
 				Files.isRegularFile(location, LinkOption.NOFOLLOW_LINKS)
 						&& PathnameUtils.suffixMatches(location, zipFilenameSuffixes);
