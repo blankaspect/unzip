@@ -35,8 +35,6 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
-import javafx.css.PseudoClass;
-
 import javafx.event.ActionEvent;
 
 import javafx.geometry.Bounds;
@@ -77,6 +75,8 @@ import uk.blankaspect.common.geometry.VHDirection;
 
 import uk.blankaspect.ui.jfx.button.GraphicButton;
 
+import uk.blankaspect.ui.jfx.listview.ListViewStyle;
+
 import uk.blankaspect.ui.jfx.scene.SceneUtils;
 
 import uk.blankaspect.ui.jfx.shape.Shapes;
@@ -84,6 +84,7 @@ import uk.blankaspect.ui.jfx.shape.Shapes;
 import uk.blankaspect.ui.jfx.style.ColourProperty;
 import uk.blankaspect.ui.jfx.style.FxProperty;
 import uk.blankaspect.ui.jfx.style.FxPseudoClass;
+import uk.blankaspect.ui.jfx.style.FxStyleClass;
 import uk.blankaspect.ui.jfx.style.RuleSetBuilder;
 import uk.blankaspect.ui.jfx.style.StyleConstants;
 import uk.blankaspect.ui.jfx.style.StyleManager;
@@ -221,6 +222,21 @@ public class SimpleComboBox<T>
 			CssSelector.builder()
 					.cls(StyleClass.LIST_VIEW_TICK)
 					.build()
+		),
+		ColourProperty.of
+		(
+			FxProperty.BACKGROUND_COLOUR,
+			ListViewStyle.ColourKey.CELL_BACKGROUND_SELECTED_FOCUSED,
+			CssSelector.builder()
+					.cls(StyleClass.LIST_VIEW).pseudo(FxPseudoClass.FOCUSED)
+					.desc(FxStyleClass.LIST_CELL)
+							.pseudo(FxPseudoClass.FILLED, FxPseudoClass.HOVERED, FxPseudoClass.EVEN)
+					.build(),
+			CssSelector.builder()
+					.cls(StyleClass.LIST_VIEW).pseudo(FxPseudoClass.FOCUSED)
+					.desc(FxStyleClass.LIST_CELL)
+							.pseudo(FxPseudoClass.FILLED, FxPseudoClass.HOVERED, FxPseudoClass.ODD)
+					.build()
 		)
 	);
 
@@ -242,6 +258,7 @@ public class SimpleComboBox<T>
 		String	SIMPLE_COMBO_BOX	= StyleConstants.CLASS_PREFIX + "simple-combo-box";
 
 		String	LIST_BUTTON_PANE	= StyleConstants.CLASS_PREFIX + "list-button-pane";
+		String	LIST_VIEW			= SIMPLE_COMBO_BOX + "-list-view";
 		String	LIST_VIEW_TICK		= SIMPLE_COMBO_BOX + "-list-view-tick";
 	}
 
@@ -360,20 +377,11 @@ public class SimpleComboBox<T>
 				}
 			};
 
-			// Set 'selected' pseudo-class of cell if it is selected or mouse is hovering over it
-			cell.getPseudoClassStates().addListener((InvalidationListener) observable ->
-			{
-				boolean selected =
-						!cell.isEmpty() && (listView.getSelectionModel().getSelectedIndex() == cell.getIndex());
-				boolean hovered =
-						cell.getPseudoClassStates().contains(PseudoClass.getPseudoClass(FxPseudoClass.HOVERED));
-				cell.pseudoClassStateChanged(PseudoClass.getPseudoClass(FxPseudoClass.SELECTED), selected || hovered);
-			});
-
 			// Return cell
 			return cell;
 		});
-		listView.prefWidthProperty().bind(widthProperty().subtract(2.0));
+		listView.getStyleClass().add(StyleClass.LIST_VIEW);
+		listView.prefWidthProperty().bind(widthProperty());
 
 		// Create procedure to update value of combo box from selection in list view
 		IProcedure0 updateValueFromList = () ->
@@ -407,6 +415,29 @@ public class SimpleComboBox<T>
 
 			// Consume event
 			event.consume();
+		});
+
+		// If a key is typed on the list view, scroll the list view to the first item whose text starts with the typed
+		// character
+		listView.setOnKeyTyped(event ->
+		{
+			String charStr = event.getCharacter();
+			if (!KeyEvent.CHAR_UNDEFINED.equals(charStr))
+			{
+				charStr = charStr.toLowerCase();
+				List<String> listViewItems = listView.getItems();
+				int numItems = listViewItems.size();
+				for (int i = 0; i < numItems; i++)
+				{
+					if (listViewItems.get(i).toLowerCase().startsWith(charStr))
+					{
+						listView.getSelectionModel().clearAndSelect(i);
+						listView.scrollTo(i);
+						break;
+					}
+				}
+				event.consume();
+			}
 		});
 
 		// Update value if mouse is clicked on list view
@@ -462,7 +493,7 @@ public class SimpleComboBox<T>
 
 			// Display pop-up
 			Bounds bounds = textField.localToScreen(textField.getLayoutBounds());
-			popUp.show(textField, bounds.getMinX(), bounds.getMaxY());
+			popUp.show(textField, bounds.getMinX() - 1.0, bounds.getMaxY());
 		};
 
 		// Handle action event on text field
