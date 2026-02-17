@@ -76,6 +76,7 @@ import uk.blankaspect.common.geometry.VHDirection;
 import uk.blankaspect.ui.jfx.button.GraphicButton;
 
 import uk.blankaspect.ui.jfx.listview.ListViewStyle;
+import uk.blankaspect.ui.jfx.listview.ListViewUtils;
 
 import uk.blankaspect.ui.jfx.scene.SceneUtils;
 
@@ -295,8 +296,9 @@ public class SimpleComboBox<T>
 
 	static
 	{
-		// Register the style properties of this class with the style manager
-		StyleManager.INSTANCE.register(SimpleComboBox.class, COLOUR_PROPERTIES, RULE_SETS);
+		// Register the style properties of this class and its dependencies with the style manager
+		StyleManager.INSTANCE.register(SimpleComboBox.class, COLOUR_PROPERTIES, RULE_SETS,
+									   ListViewStyle.class);
 	}
 
 ////////////////////////////////////////////////////////////////////////
@@ -432,7 +434,8 @@ public class SimpleComboBox<T>
 					if (listViewItems.get(i).toLowerCase().startsWith(charStr))
 					{
 						listView.getSelectionModel().clearAndSelect(i);
-						listView.scrollTo(i);
+						if (numItems > LIST_VIEW_NUM_ROWS)
+							ListViewUtils.scrollToCentred(listView, i);
 						break;
 					}
 				}
