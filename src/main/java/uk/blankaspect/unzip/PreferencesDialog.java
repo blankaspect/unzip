@@ -159,7 +159,7 @@ public class PreferencesDialog
 	private static final	String	FILENAME_SUFFIX_EDIT_LABEL	= "Filename suffix";
 
 	private static final	String	PREFERENCES_STR							= "Preferences";
-	private static final	String	THEME_STR								= "Theme";
+	private static final	String	COLOUR_SCHEME_STR						= "Colour scheme";
 	private static final	String	VERTICAL_PADDING_STR					= "Vertical padding of table row";
 	private static final	String	COLUMN_HEADER_POP_UP_DELAY_STR			= "Table-column header pop-up delay";
 	private static final	String	MS_STR									= "ms";
@@ -295,7 +295,7 @@ public class PreferencesDialog
 		themeSpinner.itemProperty().addListener((observable, oldId, id) -> selectTheme.invoke(id));
 
 		// Pane: appearance
-		HBox appearancePane = new HBox(CONTROL_H_GAP, Labels.hNoShrink(THEME_STR), themeSpinner);
+		HBox appearancePane = new HBox(CONTROL_H_GAP, Labels.hNoShrink(COLOUR_SCHEME_STR), themeSpinner);
 		appearancePane.setAlignment(Pos.CENTER);
 		appearancePane.setPadding(CONTROL_PANE_PADDING);
 
