@@ -1144,22 +1144,30 @@ public class UnzipApp
 				DaemonFactory.create(NAME_KEY + "-" + CHECK_MODIFIED_FILE_THREAD_NAME_SUFFIX, runnable));
 		executor.scheduleWithFixedDelay(() ->
 		{
+			// Get current zip file
 			ZipFileModel zipFile = getZipFile();
 			if (zipFile == null)
 				return;
 
+			// Get timestamp of file; reload file if timestamp is different from stored value
 			Path file = zipFile.getLocation();
 			FileTime oldTimestamp = zipFile.getTimestamp();
 			try
 			{
+				// Get timestamp of file
 				FileTime timestamp = Files.getLastModifiedTime(file, LinkOption.NOFOLLOW_LINKS);
+
+				// If timestamp is different from stored value, reload file
 				if (!timestamp.equals(oldTimestamp))
 				{
+					// Update stored timestamp
 					zipFile.setTimestamp(timestamp);
 
+					// If no timestamp was stored previously, don't reload file
 					if (oldTimestamp == null)
 						return;
 
+					// Display dialog to seek confirmation for reloading file; reload file after confirmation
 					Platform.runLater(() ->
 					{
 						if (!reloadPending)

@@ -35,6 +35,7 @@ import java.util.function.Predicate;
 import javafx.application.Platform;
 
 import javafx.beans.InvalidationListener;
+import javafx.beans.WeakInvalidationListener;
 
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleSetProperty;
@@ -310,6 +311,9 @@ public class ZipFileTableView
 	/** Flag: if {@code true}, the header of this table view has been initialised. */
 	private	boolean								headerInitialised;
 
+	/** The listener that responds to a change of theme. */
+	private	InvalidationListener				themeListener;
+
 	// WORKAROUND for a bug in JavaFX: isFocused() sometimes returns false when the table view has focus
 	/** Flag: if {@code true}, this table view has keyboard focus. */
 	private	boolean								focused;
@@ -426,8 +430,8 @@ public class ZipFileTableView
 		StyleManager.INSTANCE.register(getClass(), COLOUR_PROPERTIES, createRuleSets.invoke(), TableViewStyle.class);
 
 		// Update rule sets when theme changes
-		StyleManager.INSTANCE.themeProperty().addListener(observable ->
-				StyleManager.INSTANCE.updateRuleSets(getClass(), createRuleSets.invoke()));
+		themeListener = observable -> StyleManager.INSTANCE.updateRuleSets(getClass(), createRuleSets.invoke());
+		StyleManager.INSTANCE.themeProperty().addListener(new WeakInvalidationListener(themeListener));
 
 		// Set height of cell
 		updateCellHeight();
