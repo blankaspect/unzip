@@ -222,6 +222,12 @@ public class UnzipApp
 		SystemPropertyKey.MAIN_WINDOW_DELAY_OPACITY,  25
 	);
 
+	/** The minimum width of the main window. */
+	private static final	double	MAIN_WINDOW_MIN_WIDTH	= 120.0;
+
+	/** The minimum height of the main window. */
+	private static final	double	MAIN_WINDOW_MIN_HEIGHT	= 96.0;
+
 	/** The margins that are applied to the visual bounds of each screen when determining whether the saved location of
 		the main window is within a screen. */
 	private static final	Insets	SCREEN_MARGINS	= new Insets(0.0, 32.0, 32.0, 0.0);
@@ -668,6 +674,10 @@ public class UnzipApp
 			// Set size of main window after a delay
 			ExecUtils.afterDelay(getDelay(SystemPropertyKey.MAIN_WINDOW_DELAY_SIZE), () ->
 			{
+				// Temporarily set minimum dimensions to prevent window from shrinking (Linux/GNOME)
+				primaryStage.setMinWidth(primaryStage.getWidth());
+				primaryStage.setMinHeight(primaryStage.getHeight());
+
 				// Get size of window from saved state
 				Dimension2D size = mainWindowState.getSize();
 
@@ -701,6 +711,10 @@ public class UnzipApp
 					// Perform remaining initialisation after a delay
 					ExecUtils.afterDelay(getDelay(SystemPropertyKey.MAIN_WINDOW_DELAY_OPACITY), () ->
 					{
+						// Set minimum dimensions of window
+						primaryStage.setMinWidth(MAIN_WINDOW_MIN_WIDTH);
+						primaryStage.setMinHeight(MAIN_WINDOW_MIN_HEIGHT);
+
 						// Make window visible
 						primaryStage.setOpacity(1.0);
 
