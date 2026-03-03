@@ -848,8 +848,7 @@ public class ExtractionDialog
 		super.onWindowShown();
 
 		// Prevent height of window from changing
-		setMinHeight(prefHeight());
-		setMaxHeight(prefHeight());
+		setMaxHeight(getHeight());
 	}
 
 	//------------------------------------------------------------------
