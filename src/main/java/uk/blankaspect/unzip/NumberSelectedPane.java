@@ -35,6 +35,8 @@ import uk.blankaspect.common.css.CssSelector;
 
 import uk.blankaspect.common.number.NumberUtils;
 
+import uk.blankaspect.ui.jfx.label.Labels;
+
 import uk.blankaspect.ui.jfx.scene.SceneUtils;
 
 import uk.blankaspect.ui.jfx.style.ColourProperty;
@@ -144,7 +146,7 @@ public class NumberSelectedPane
 		setPadding(PADDING);
 
 		// Create label: number selected
-		numSelectedLabel = new Label();
+		numSelectedLabel = Labels.hNoShrink();
 		numSelectedLabel.setMaxWidth(Double.MAX_VALUE);
 		numSelectedLabel.setAlignment(Pos.CENTER_RIGHT);
 		numSelectedLabel.setPadding(LABEL_PADDING);
@@ -157,7 +159,7 @@ public class NumberSelectedPane
 		update(0, 0);
 
 		// Add children
-		getChildren().addAll(new Label(NUM_SELECTED_STR), numSelectedLabel);
+		getChildren().addAll(Labels.hNoShrink(NUM_SELECTED_STR), numSelectedLabel);
 	}
 
 	//------------------------------------------------------------------
