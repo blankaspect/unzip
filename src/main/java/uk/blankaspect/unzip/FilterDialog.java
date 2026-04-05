@@ -425,7 +425,9 @@ public class FilterDialog
 		super.onWindowShown();
 
 		// Prevent height of window from changing
-		setMaxHeight(getHeight());
+		double height = prefHeight();
+		setMinHeight(height);
+		setMaxHeight(height);
 	}
 
 	//------------------------------------------------------------------
